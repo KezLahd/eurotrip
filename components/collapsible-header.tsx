@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface CollapsibleHeaderProps {
-  dateRange: { from: Date | undefined; to: Date | undefined }
-  onDateRangeChange: (range: { from: Date | undefined; to: Date | undefined }) => void
-  onHeaderToggle: (isExpanded: boolean) => void // Callback to inform parent
+  eventFilter: 'all' | 'mine';
+  onEventFilterChange: (filter: 'all' | 'mine') => void;
+  onHeaderToggle: (isExpanded: boolean) => void;
 }
 
-export function CollapsibleHeader({ dateRange, onDateRangeChange, onHeaderToggle }: CollapsibleHeaderProps) {
+export function CollapsibleHeader({ eventFilter, onEventFilterChange, onHeaderToggle }: CollapsibleHeaderProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const contentRef = useRef<HTMLDivElement>(null)
   const [currentContentHeight, setCurrentContentHeight] = useState(0)
@@ -36,7 +36,7 @@ export function CollapsibleHeader({ dateRange, onDateRangeChange, onHeaderToggle
     setCurrentContentHeight(contentRef.current.scrollHeight)
 
     return () => observer.disconnect()
-  }, [dateRange])
+  }, [eventFilter])
 
   const toggleHeader = () => {
     setIsExpanded(!isExpanded)
@@ -44,7 +44,7 @@ export function CollapsibleHeader({ dateRange, onDateRangeChange, onHeaderToggle
 
   return (
     // The main container for the collapsible header
-    <div className="relative z-20 w-full max-w-7xl bg-white/80 backdrop-blur-sm shadow-sm rounded-b-xl animate-fade-in">
+    <div className="relative z-20 w-full max-w-7xl backdrop-blur-sm shadow-sm rounded-b-xl animate-fade-in" style={{ background: 'rgba(255,255,255,0.2)' }}>
       {/* This div controls the collapsing animation and has overflow: hidden */}
       <div
         className="overflow-hidden transition-all duration-500 ease-in-out"
@@ -53,10 +53,10 @@ export function CollapsibleHeader({ dateRange, onDateRangeChange, onHeaderToggle
         {/* This div holds the actual header content whose height is measured */}
         <div ref={contentRef}>
           <ItineraryHeader
-            dateRange={dateRange}
-            onDateRangeChange={onDateRangeChange}
-            isExpanded={isExpanded} // Pass isExpanded state
-            onToggle={toggleHeader} // Pass toggle function
+            eventFilter={eventFilter}
+            onEventFilterChange={onEventFilterChange}
+            isExpanded={isExpanded}
+            onToggle={toggleHeader}
           />
         </div>
       </div>

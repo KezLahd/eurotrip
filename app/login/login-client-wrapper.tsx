@@ -6,6 +6,7 @@ import AuthForm from "@/components/auth-form"
 import { LoginBackgroundVideo } from "@/components/login-background-video"
 import { createBrowserClient } from "@/lib/supabase-client"
 import { WelcomePopup } from "@/components/welcome-popup"
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 
 interface LoginClientWrapperProps {
   landscapeVideoUrl: string | null
@@ -25,12 +26,16 @@ export default function LoginClientWrapper({
   const [showAuthForm, setShowAuthForm] = useState(true)
   const [fadeToStaticBackground, setFadeToStaticBackground] = useState(false)
   const [showWelcomePopup, setShowWelcomePopup] = useState(false)
+  const [supabase, setSupabase] = useState<any>(null)
 
   const router = useRouter()
-  const supabase = useMemo(() => createBrowserClient(), [])
 
-  // Effect 1: Session check + auth listener
   useEffect(() => {
+    setSupabase(createBrowserClient())
+  }, [])
+
+  useEffect(() => {
+    if (!supabase) return;
     let authListenerSubscription: any
 
     async function checkUserSession() {
@@ -46,7 +51,7 @@ export default function LoginClientWrapper({
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setIsAuthenticated(!!session)
     })
 
@@ -91,10 +96,10 @@ export default function LoginClientWrapper({
   }, [isAuthenticated, checkingSession]) // Dependencies for this effect
 
   const handleLoginSuccess = () => {
-    // No manual changes needed — session listener will handle it
+    window.location.reload();
   }
 
-  if (checkingSession) {
+  if (checkingSession || !supabase) {
     return (
       <div className="relative h-screen w-screen flex items-center justify-center overflow-hidden">
         <LoginBackgroundVideo
@@ -119,7 +124,7 @@ export default function LoginClientWrapper({
         fadeToStaticBackground={fadeToStaticBackground}
       />
 
-      {showAuthForm && (
+      {showAuthForm && supabase && (
         <div className="relative z-20 p-4">
           <AuthForm supabase={supabase} onSuccess={handleLoginSuccess} />
         </div>

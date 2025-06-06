@@ -11,8 +11,16 @@ interface ItineraryTimelineProps {
 }
 
 export function ContinuousTimeline({ events, allParticipantProfiles }: ItineraryTimelineProps) {
-  // Sort events chronologically based on universal time, then local, then start date
+  // Sort events chronologically based on event type
   const sortedEvents = [...events].sort((a, b) => {
+    // For activities, prioritize local time
+    if (a.event_type === "activity" && b.event_type === "activity") {
+      const timeA = (a.leave_time_local || a.start_date)?.getTime() || Number.POSITIVE_INFINITY
+      const timeB = (b.leave_time_local || b.start_date)?.getTime() || Number.POSITIVE_INFINITY
+      return timeA - timeB
+    }
+    
+    // For other events, use the existing sorting logic
     const timeA = (a.leave_time_universal || a.leave_time_local || a.start_date)?.getTime() || Number.POSITIVE_INFINITY
     const timeB = (b.leave_time_universal || b.leave_time_local || b.start_date)?.getTime() || Number.POSITIVE_INFINITY
     return timeA - timeB
@@ -37,7 +45,7 @@ export function ContinuousTimeline({ events, allParticipantProfiles }: Itinerary
       />
 
       {sortedEvents.map((event) => (
-        <TimelineEventWrapper key={event.id} event={event} allParticipantProfiles={allParticipantProfiles} />
+        <TimelineEventWrapper key={`${event.event_type}-${event.id}`} event={event} allParticipantProfiles={allParticipantProfiles} />
       ))}
     </div>
   )

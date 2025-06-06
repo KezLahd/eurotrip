@@ -3,25 +3,31 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase-client"
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
 
 export function UserAuthButton() {
   const [user, setUser] = useState<any>(null) // Store user session data
   const [loading, setLoading] = useState(true)
-  const supabase = createBrowserClient()
+  const [supabase, setSupabase] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
+    setSupabase(createBrowserClient())
+  }, [])
+
+  useEffect(() => {
+    if (!supabase) return;
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setUser(session?.user || null)
       setLoading(false)
     })
 
     // Initial check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       setUser(session?.user || null)
       setLoading(false)
     })
@@ -32,6 +38,7 @@ export function UserAuthButton() {
   }, [supabase])
 
   const handleSignOut = async () => {
+    if (!supabase) return;
     setLoading(true)
     const { error } = await supabase.auth.signOut()
     if (error) {
@@ -43,7 +50,7 @@ export function UserAuthButton() {
     }
   }
 
-  if (loading) {
+  if (loading || !supabase) {
     return null // Or a small spinner if desired
   }
 
@@ -54,10 +61,10 @@ export function UserAuthButton() {
         size="sm"
         onClick={handleSignOut}
         disabled={loading}
-        className="text-primary-blue hover:bg-primary-blue/10"
+        className="text-purple-700 hover:bg-purple-200/40 text-lg font-bold flex items-center"
       >
-        <LogOut className="h-4 w-4 mr-2" />
-        Sign Out
+        <LogOut className="h-6 w-6 mr-2 text-purple-700" />
+        <span className="text-purple-700 text-lg font-bold">Sign Out</span>
       </Button>
     )
   }

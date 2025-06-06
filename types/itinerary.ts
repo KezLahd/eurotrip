@@ -74,18 +74,18 @@ export interface RawCarHire {
 
 export interface RawActivity {
   id: number
-  activity_name: string | null
-  activity_photo_url: string | null
-  additional_details: string | null
-  booking_reference: string | null
-  city: string | null
-  start_time_local: string | null
-  start_time_utc: string | null
-  end_time_local: string | null
-  end_time_utc: string | null
-  participants: string | null
-  participant_count: string | null
-  location: string | null // General location for the activity
+  activity_name: string | undefined
+  activity_photo_url: string | undefined
+  additional_details: string | undefined
+  booking_reference: string | undefined
+  city: string | undefined
+  start_time_local: string | undefined
+  start_time_utc: string | undefined
+  end_time_local: string | undefined
+  end_time_utc: string | undefined
+  participants: string | undefined
+  participant_count: string | undefined
+  location: string | undefined // General location for the activity
 }
 
 // New: Raw Transport Ticket (corrected to match DB column 'passenger_name')
@@ -131,10 +131,11 @@ export interface CarDetail {
 
 // New: Transport Ticket Detail (passenger_name will be the resolved full name)
 export interface TransportTicketDetail {
-  id: number
-  passenger_name: string // This will be the resolved full name
-  ticket_number: string | null
-  booking_reference: string | null
+  ticket_type: string
+  ticket_number: string
+  passenger: string
+  passenger_name?: string
+  booking_reference?: string
 }
 
 // New: Participant Profile (transformed from RawParticipant)
@@ -148,48 +149,46 @@ export interface ParticipantProfile {
 // It's a superset of all possible event properties
 export interface ItineraryEvent {
   id: number
-  event_type: "flight" | "accommodation" | "transfer" | "activity" | "car_hire" | "unknown"
-  description: string | null // Main title for the card (e.g., flight number, hotel name, activity name)
-  booking_reference: string | null
-  participants: string[] // Aggregated for grouped accommodations, or direct for others
-  location: string | null // General location (e.g., city for hotel, activity city)
-  notes: string | null // Additional details
-
-  // Time properties (can be for departure/arrival or start/end)
-  start_date: Date | null // For accommodations, activities
-  end_date: Date | null // For accommodations, activities
-  leave_time_local: Date | null // For flights, transfers, car hires (departure/pickup)
-  arrive_time_local: Date | null // For flights, transfers, car hires (arrival/dropoff)
-  leave_time_universal: Date | null
-  arrive_time_universal: Date | null
-
-  // Specific properties for different event types
-  // Flight specific
-  airline: string | null // Maps to flight_number
-  leave_location: string | null // departure_city
-  arrive_location: string | null // arrival_city
-  passengers: string[] // flight passengers
-
-  // Accommodation specific (main card properties)
-  hotel_name: string | null // accomodation_name
-  hotel_address: string | null
-  breakfast_provided: boolean // breakfast_included
-  hotel_photo_url: string | null // Added for direct mapping
-  rooms?: RoomDetail[] // Optional: for grouped accommodation events
-
-  // Transfer specific
-  company: string | null // transport_method
-  transfer_photo_url: string | null
-  transport_tickets?: TransportTicketDetail[] // New: for transfers with specific tickets
-  additional_transfer_info?: string | null // NEW: For extracted info from parentheses
-
-  // Car Hire specific
-  driver: string | null // This will be null for grouped car hire events, details are in `cars`
-  car_photo_url: string | null // This will be null for grouped car hire events, details are in `cars`
-  cars?: CarDetail[] // Optional: for grouped car hire events
-
-  // Activity specific
-  activity_photo_url: string | null
+  event_type: "flight" | "transfer" | "accommodation" | "activity" | "car_hire" | "unknown"
+  description?: string
+  company?: string
+  leave_time_universal?: Date
+  leave_time_local?: Date
+  arrive_time_universal?: Date
+  arrive_time_local?: Date
+  start_date?: Date
+  end_date?: Date
+  location?: string
+  participants?: string[]
+  participant_count?: string
+  room_details?: RoomDetail[]
+  transport_type?: "train" | "bus" | "ferry" | "walk" | "taxi" | "car"
+  // Activity specific fields
+  activity_name?: string
+  activity_photo_url?: string
+  additional_details?: string
+  booking_reference?: string
+  city?: string
+  start_time_local?: string
+  start_time_utc?: string
+  end_time_local?: string
+  end_time_utc?: string
+  // Transfer specific fields
+  transport_tickets?: TransportTicketDetail[]
+  transfer_photo_url?: string
+  additional_transfer_info?: string // Added for transfer operator info
+  // Accommodation specific fields
+  rooms?: RoomDetail[]
+  hotel_photo_url?: string
+  // Car hire specific fields
+  cars?: CarDetail[]
+  // Flight specific fields
+  leave_location?: string
+  arrive_location?: string
+  airline?: string
+  passengers?: string[] // Added for flight passengers
+  // Common fields
+  notes?: string
 }
 
 export type FlightCard = {}

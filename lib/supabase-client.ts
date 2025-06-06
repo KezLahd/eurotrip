@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies"
 import type { NextRequest } from "next/server"
+import { createPagesBrowserClient } from "@supabase/auth-helpers-nextjs"
 
 // ✅ Server-Side Supabase Client
 export const createServerClient = (
@@ -13,7 +14,7 @@ export const createServerClient = (
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       storage: {
-        getItem: (key) => cookieStore.get(key)?.value,
+        getItem: (key) => Promise.resolve(cookieStore.get(key)?.value ?? null),
         setItem: () => {},
         removeItem: () => {},
       },
@@ -36,9 +37,7 @@ export const createBrowserClient = (): SupabaseClient => {
   }
 
   if (!window.__SUPABASE_BROWSER_CLIENT__) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    window.__SUPABASE_BROWSER_CLIENT__ = createClient(supabaseUrl, supabaseAnonKey)
+    window.__SUPABASE_BROWSER_CLIENT__ = createPagesBrowserClient()
     console.log("[Supabase] Browser client created")
   }
 

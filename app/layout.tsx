@@ -1,6 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
+import Link from "next/link"
+import { CurrentParticipantProvider } from "@/components/current-participant-context"
 
 export const metadata: Metadata = {
   title: "v0 App",
@@ -15,7 +17,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CurrentParticipantProvider>
+          {children}
+        </CurrentParticipantProvider>
+      </body>
     </html>
   )
 }

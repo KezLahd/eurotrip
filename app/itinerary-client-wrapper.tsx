@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import Image from "next/image"
 import { ItineraryTabs } from "@/components/itinerary-tabs"
 import { createBrowserClient } from "@/lib/supabase-client"
@@ -8,6 +8,11 @@ import type { ItineraryEvent, ParticipantProfile } from "@/types/itinerary"
 import { format, isWithinInterval, startOfDay, endOfDay, subYears, addYears } from "date-fns"
 import { CollapsibleHeader } from "@/components/collapsible-header"
 import { fetchItineraryData } from "@/actions/itinerary" // Import the Server Action
+import { SupabaseClient } from "@supabase/supabase-js"
+import { LoginBackgroundVideo } from "@/components/login-background-video"
+import { WelcomePopup } from "@/components/welcome-popup"
+import { cn } from "@/lib/utils"
+import { useCurrentParticipant } from "@/components/current-participant-context"
 
 interface ItineraryClientWrapperProps {
   landscapeBackgroundUrl: string | null
@@ -22,6 +27,11 @@ export default function ItineraryClientWrapper({
   const [accommodationEvents, setAccommodationEvents] = useState<ItineraryEvent[]>([])
   const [activityEvents, setActivityEvents] = useState<ItineraryEvent[]>([])
   const [allParticipantProfiles, setAllParticipantProfiles] = useState<Map<string, ParticipantProfile>>(new Map())
+  const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(true)
+  const [fadeToStaticBackground, setFadeToStaticBackground] = useState(false)
+  const [showWelcomePopup, setShowWelcomePopup] = useState(true)
+  const [landscapeVideoUrl, setLandscapeVideoUrl] = useState<string | null>(null)
+  const [portraitVideoUrl, setPortraitVideoUrl] = useState<string | null>(null)
 
   const [flightsTransfersLoading, setFlightsTransfersLoading] = useState(true)
   const [accommodationLoading, setAccommodationLoading] = useState(true)
@@ -34,7 +44,13 @@ export default function ItineraryClientWrapper({
   const [isHeaderExpanded, setIsHeaderExpanded] = useState(true)
   const [currentBackgroundImageUrl, setCurrentBackgroundImageUrl] = useState<string | null>(null)
 
-  const supabase = useMemo(() => createBrowserClient(), [])
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null)
+  const [eventFilter, setEventFilter] = useState<'all' | 'mine'>('all')
+  const participant = useCurrentParticipant()
+
+  useEffect(() => {
+    setSupabase(createBrowserClient())
+  }, [])
 
   const handleHeaderToggle = useCallback((expanded: boolean) => {
     setIsHeaderExpanded(expanded)
@@ -62,8 +78,73 @@ export default function ItineraryClientWrapper({
     return () => window.removeEventListener("resize", determineAndSetBackground)
   }, [landscapeBackgroundUrl, portraitBackgroundUrl])
 
+  // Add effect to fetch initial_load video URLs
+  useEffect(() => {
+    const supabaseClient = supabase
+    if (!supabaseClient) return
+
+    async function fetchInitialLoadVideos() {
+      try {
+        // Fetch landscape video
+        const { data: landscapeVideo, error: landscapeError } = await (supabaseClient as SupabaseClient)
+          .from("animations")
+          .select("url")
+          .eq("name", "initial_load")
+          .eq("screen_aspect_ratio", "16:9")
+          .single()
+
+        if (landscapeError) {
+          console.error("Error fetching landscape initial_load video:", landscapeError.message)
+        } else {
+          setLandscapeVideoUrl(landscapeVideo?.url || null)
+        }
+
+        // Fetch portrait video
+        const { data: portraitVideo, error: portraitError } = await (supabaseClient as SupabaseClient)
+          .from("animations")
+          .select("url")
+          .eq("name", "initial_load")
+          .eq("screen_aspect_ratio", "9:16")
+          .single()
+
+        if (portraitError) {
+          console.error("Error fetching portrait initial_load video:", portraitError.message)
+        } else {
+          setPortraitVideoUrl(portraitVideo?.url || null)
+        }
+      } catch (error) {
+        console.error("Error in fetchInitialLoadVideos:", error)
+      }
+    }
+
+    fetchInitialLoadVideos()
+  }, [supabase])
+
+  // Start the animation sequence
+  useEffect(() => {
+    if (showWelcomeAnimation) {
+      const videoPlayDuration = 3000
+      const fadeTransitionDuration = 800
+
+      const fadeTimer = setTimeout(() => {
+        setFadeToStaticBackground(true)
+      }, videoPlayDuration)
+
+      const hideWelcomeTimer = setTimeout(() => {
+        setShowWelcomePopup(false)
+        setShowWelcomeAnimation(false)
+      }, videoPlayDuration + fadeTransitionDuration)
+
+      return () => {
+        clearTimeout(fadeTimer)
+        clearTimeout(hideWelcomeTimer)
+      }
+    }
+  }, [showWelcomeAnimation])
+
   // Effect to fetch Flights & Transfers data first
   useEffect(() => {
+    if (!supabase) return;
     async function loadFlightsTransfers() {
       setFlightsTransfersLoading(true)
       try {
@@ -78,7 +159,7 @@ export default function ItineraryClientWrapper({
       }
     }
     loadFlightsTransfers()
-  }, []) // Runs once on mount
+  }, [supabase]) // Runs once on mount
 
   // Effect to fetch Accommodation data after Flights & Transfers are loaded
   useEffect(() => {
@@ -123,7 +204,7 @@ export default function ItineraryClientWrapper({
   )
 
   const filteredEvents = useMemo(() => {
-    return allEvents.filter((event) => {
+    return allEvents.filter((event: ItineraryEvent) => {
       const eventDate = event.leave_time_local || event.start_date
       const matchesDate =
         !dateRange.from ||
@@ -137,6 +218,15 @@ export default function ItineraryClientWrapper({
     })
   }, [allEvents, dateRange])
 
+  // Filter events for 'my itinerary'
+  const filterForMine = (events: ItineraryEvent[]) => {
+    if (eventFilter === 'all' || !participant) return events;
+    return events.filter(event =>
+      (event.participants && event.participants.includes(participant.participant_name)) ||
+      (event.passengers && event.passengers.includes(participant.participant_name))
+    );
+  };
+
   const scrollAreaHeightClass = isHeaderExpanded
     ? "h-[calc(100vh-180px)] md:h-[calc(100vh-160px)]"
     : "h-[calc(100vh-80px)] md:h-[calc(100vh-80px)]"
@@ -146,8 +236,22 @@ export default function ItineraryClientWrapper({
 
   return (
     <div className="relative h-screen flex flex-col items-center px-1 py-4 md:p-8 font-sans overflow-hidden">
+      {/* Welcome Animation */}
+      {showWelcomeAnimation && (
+        <>
+          <LoginBackgroundVideo
+            landscapeVideoUrl={landscapeVideoUrl}
+            portraitVideoUrl={portraitVideoUrl}
+            landscapeBackgroundUrl={landscapeBackgroundUrl}
+            portraitBackgroundUrl={portraitBackgroundUrl}
+            fadeToStaticBackground={fadeToStaticBackground}
+          />
+          <WelcomePopup show={showWelcomePopup} />
+        </>
+      )}
+
       {/* Background Image */}
-      <div className="absolute inset-0 z-0">
+      <div className={cn("absolute inset-0 z-0", showWelcomeAnimation && "opacity-0")}>
         <Image
           src={currentBackgroundImageUrl || "/placeholder.svg?height=1080&width=1920&query=default travel scene"}
           alt="European Summer Scene"
@@ -162,13 +266,13 @@ export default function ItineraryClientWrapper({
 
       {/* Collapsible Header Component */}
       <CollapsibleHeader
-        dateRange={dateRange}
-        onDateRangeChange={onDateRangeChange}
+        eventFilter={eventFilter}
+        onEventFilterChange={setEventFilter}
         onHeaderToggle={handleHeaderToggle}
       />
 
       {/* Scrollable Content Area */}
-      <div className="relative z-10 w-full max-w-7xl flex flex-col gap-6 pt-4 flex-grow">
+      <div className={cn("relative z-10 w-full max-w-7xl flex flex-col gap-6 pt-4 flex-grow", showWelcomeAnimation && "opacity-0")}>
         {overallLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-accent-pink">
             <p className="text-lg font-semibold">Loading itinerary events...</p>
@@ -176,16 +280,16 @@ export default function ItineraryClientWrapper({
           </div>
         ) : (
           <ItineraryTabs
-            flightsTransfersEvents={flightsTransfersEvents}
-            accommodationEvents={accommodationEvents}
-            activityEvents={activityEvents}
+            flightsTransfersEvents={filterForMine(flightsTransfersEvents)}
+            accommodationEvents={filterForMine(accommodationEvents)}
+            activityEvents={filterForMine(activityEvents)}
             flightsTransfersLoading={flightsTransfersLoading}
             accommodationLoading={accommodationLoading}
             activitiesLoading={activitiesLoading}
             selectedDate={dateRange.from || new Date()}
             allParticipantProfiles={allParticipantProfiles}
             scrollAreaHeightClass={scrollAreaHeightClass}
-            filteredEvents={filteredEvents}
+            filteredEvents={filterForMine(allEvents)}
           />
         )}
       </div>

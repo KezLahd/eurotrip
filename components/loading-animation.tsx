@@ -26,7 +26,7 @@ export const LoadingAnimation = ({ isLoadingContent, videoUrl }: { isLoadingCont
       // After the fade-out transition completes, hide the component
       const hideComponentTimer = setTimeout(() => {
         setShowComponent(false)
-      }, 2000) // Matches the CSS transition duration
+      }, 3600) // 2.6s fade + 1s extra background
 
       return () => {
         clearTimeout(hideComponentTimer)
@@ -61,7 +61,7 @@ export const LoadingAnimation = ({ isLoadingContent, videoUrl }: { isLoadingCont
       ref={containerRef}
       style={{
         opacity: isFadingOut ? 0 : 1,
-        transition: "opacity 2s ease-out",
+        transition: "opacity 2.6s ease-out",
       }}
       className={`fixed inset-0 z-50 flex items-center justify-center bg-white ${
         isFadingOut ? "pointer-events-none" : ""

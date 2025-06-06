@@ -18,8 +18,8 @@ import type {
  * Parses various custom date string formats into a Date object.
  * Tries formats in order of specificity/likelihood.
  */
-export function parseCustomDateString(dateString: string | null): Date | null {
-  if (!dateString) return null
+export function parseCustomDateString(dateString: string | null): Date | undefined {
+  if (!dateString) return undefined
 
   let parsedDate: Date
 
@@ -52,7 +52,7 @@ export function parseCustomDateString(dateString: string | null): Date | null {
   }
 
   console.warn(`Could not parse date string: "${dateString}"`)
-  return null
+  return undefined
 }
 
 /**
@@ -103,32 +103,28 @@ export function transformFlight(
     id: raw.id,
     event_type: "flight",
     description: raw.flight_number || "Flight",
-    booking_reference: raw.booking_reference,
-    participants: parseParticipants(raw.passengers, allParticipantProfiles), // Pass allParticipantProfiles
-    location: raw.arrival_city, // Or departure_city, depending on primary location
-    notes: null, // No direct mapping in new schema
-    start_date: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : null,
-    end_date: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : null,
-    leave_time_local: parseCustomDateString(raw.departure_time_local),
-    arrive_time_local: parseCustomDateString(raw.arrival_time_local),
-    leave_time_universal: raw.departure_time_utc ? new Date(raw.departure_time_utc) : null,
-    arrive_time_universal: raw.arrival_time_utc ? new Date(raw.arrival_time_utc) : null,
-    airline: raw.flight_number,
-    leave_location: raw.departure_city,
-    arrive_location: raw.arrival_city,
-    passengers: parseParticipants(raw.passengers, allParticipantProfiles), // Pass allParticipantProfiles
-    hotel_name: null,
-    hotel_address: null,
-    breakfast_provided: false,
-    hotel_photo_url: null,
-    company: null,
-    transfer_photo_url: raw.flight_photo_url, // Using this for image query
-    driver: null,
-    car_photo_url: null,
-    cars: [], // Initialize for consistency
-    activity_photo_url: null,
-    transport_tickets: [], // Initialize for consistency
-    additional_transfer_info: null, // Initialize
+    booking_reference: raw.booking_reference || undefined,
+    participants: parseParticipants(raw.passengers ?? null, allParticipantProfiles),
+    location: raw.arrival_city || undefined,
+    notes: undefined, // No direct mapping in new schema
+    start_date: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : undefined,
+    end_date: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : undefined,
+    leave_time_local: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : undefined,
+    arrive_time_local: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : undefined,
+    leave_time_universal: raw.departure_time_utc ? new Date(raw.departure_time_utc) : undefined,
+    arrive_time_universal: raw.arrival_time_utc ? new Date(raw.arrival_time_utc) : undefined,
+    airline: raw.flight_number || undefined,
+    leave_location: raw.departure_city || undefined,
+    arrive_location: raw.arrival_city || undefined,
+    passengers: parseParticipants(raw.passengers ?? null, allParticipantProfiles),
+    hotel_photo_url: undefined,
+    company: undefined,
+    transfer_photo_url: raw.flight_photo_url || undefined,
+    car_photo_url: undefined,
+    cars: [],
+    activity_photo_url: undefined,
+    transport_tickets: [],
+    additional_transfer_info: undefined,
   }
 }
 
@@ -139,68 +135,64 @@ export function transformTransportTicket(
 ): TransportTicketDetail {
   // Resolve the passenger's full name from their initials using the 'passenger' column
   const resolvedPassengerName =
-    parseParticipants(raw.passenger, allParticipantProfiles)[0] || raw.passenger || "Unknown Passenger"
+    parseParticipants(raw.passenger ?? null, allParticipantProfiles)[0] || raw.passenger || "Unknown Passenger"
 
   return {
-    id: raw.id,
-    passenger_name: resolvedPassengerName, // This is now the resolved full name
-    ticket_number: raw.ticket_number,
-    booking_reference: raw.booking_reference,
+    ticket_type: "Train", // or set appropriately if you have this info
+    ticket_number: raw.ticket_number || "",
+    passenger: raw.passenger || "",
+    passenger_name: resolvedPassengerName,
+    booking_reference: raw.booking_reference || undefined,
   }
 }
 
 export function transformTransfer(
   raw: RawTransfer,
   allRawTransportTickets: RawTransportTicket[],
-  allParticipantProfiles: Map<string, ParticipantProfile>, // New parameter
+  allParticipantProfiles: Map<string, ParticipantProfile>,
 ): ItineraryEvent {
   const transformedTickets: TransportTicketDetail[] = []
 
-  // Filter and transform transport tickets relevant to this transfer
-  // Link by booking_reference OR transfer_name
   if (raw.booking_reference || raw.transfer_name) {
     const relevantTickets = allRawTransportTickets.filter(
       (ticket) =>
         (raw.booking_reference && ticket.booking_reference === raw.booking_reference) ||
         (raw.transfer_name && ticket.transfer_name === raw.transfer_name),
     )
-    transformedTickets.push(...relevantTickets.map((t) => transformTransportTicket(t, allParticipantProfiles))) // Pass allParticipantProfiles
+    transformedTickets.push(...relevantTickets.map((t) => transformTransportTicket(t, allParticipantProfiles)))
   }
 
-  // Use the raw transfer_name for description, removing any content in parentheses
   let description = raw.transfer_name || raw.transport_method || "Transfer"
-  const parenthesesRegex = /\s*$$[^)]*$$\s*$/ // Matches (text) at the end of the string
+  const parenthesesRegex = /\s*$$[^)]*$$\s*$/
   description = description.replace(parenthesesRegex, "").trim()
 
-  // Directly use the new 'operator' column for additional_transfer_info
-  const additionalInfo = raw.operator || null
+  const additionalInfo = raw.operator || undefined
 
   return {
     id: raw.id,
     event_type: "transfer",
-    description: description, // Use the cleaned description
-    booking_reference: raw.booking_reference,
-    participants: parseParticipants(raw.participants, allParticipantProfiles), // Pass allParticipantProfiles
-    location: raw.arrival_location || raw.departure_location,
-    notes: null,
-    start_date: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : null,
-    end_date: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : null,
-    leave_time_local: parseCustomDateString(raw.departure_time_local),
-    arrive_time_local: parseCustomDateString(raw.arrival_time_local),
-    leave_time_universal: raw.departure_time_utc ? new Date(raw.departure_time_utc) : null,
-    arrive_time_universal: raw.arrival_time_utc ? new Date(raw.arrival_time_utc) : null,
-    airline: null,
-    leave_location: raw.departure_location,
-    arrive_location: raw.arrival_location,
+    description: description,
+    booking_reference: raw.booking_reference || undefined,
+    participants: parseParticipants(raw.participants ?? null, allParticipantProfiles),
+    location: raw.arrival_location || raw.departure_location || undefined,
+    notes: undefined,
+    start_date: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : undefined,
+    end_date: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : undefined,
+    leave_time_local: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : undefined,
+    arrive_time_local: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : undefined,
+    leave_time_universal: raw.departure_time_utc ? new Date(raw.departure_time_utc) : undefined,
+    arrive_time_universal: raw.arrival_time_utc ? new Date(raw.arrival_time_utc) : undefined,
+    airline: undefined,
+    leave_location: raw.departure_location || undefined,
+    arrive_location: raw.arrival_location || undefined,
     passengers: [],
-    company: raw.transport_method,
-    transfer_photo_url: raw.transfer_photo_url,
-    driver: null,
-    car_photo_url: null,
-    cars: [], // Initialize for consistency
-    activity_photo_url: null,
-    transport_tickets: transformedTickets, // Assign transformed tickets
-    additional_transfer_info: additionalInfo, // Assign extracted info from new 'operator' column
+    company: raw.transport_method || undefined,
+    transfer_photo_url: raw.transfer_photo_url || undefined,
+    car_photo_url: undefined,
+    cars: [],
+    activity_photo_url: undefined,
+    transport_tickets: transformedTickets,
+    additional_transfer_info: additionalInfo,
   }
 }
 
@@ -212,32 +204,25 @@ export function transformActivity(
     id: raw.id,
     event_type: "activity",
     description: raw.activity_name || "Activity",
-    booking_reference: raw.booking_reference,
-    participants: parseParticipants(raw.participants, allParticipantProfiles),
-    location: raw.location || raw.city,
-    notes: raw.additional_details,
-    start_date: raw.start_time_local ? parseCustomDateString(raw.start_time_local) : null,
-    end_date: raw.end_time_local ? parseCustomDateString(raw.end_time_local) : null,
-    leave_time_local: parseCustomDateString(raw.start_time_local),
-    arrive_time_local: parseCustomDateString(raw.end_time_local),
-    leave_time_universal: raw.start_time_utc ? new Date(raw.start_time_utc) : null,
-    arrive_time_universal: raw.end_time_utc ? new Date(raw.end_time_utc) : null,
-    airline: null,
-    leave_location: null,
-    arrive_location: null,
+    activity_name: raw.activity_name || undefined,
+    booking_reference: raw.booking_reference || undefined,
+    participants: parseParticipants(raw.participants ?? null, allParticipantProfiles),
+    location: raw.location || raw.city || undefined,
+    notes: raw.additional_details || undefined,
+    start_date: raw.start_time_local ? parseCustomDateString(raw.start_time_local) : undefined,
+    end_date: raw.end_time_local ? parseCustomDateString(raw.end_time_local) : undefined,
+    leave_time_local: raw.start_time_local ? parseCustomDateString(raw.start_time_local) : undefined,
+    arrive_time_local: raw.end_time_local ? parseCustomDateString(raw.end_time_local) : undefined,
+    leave_time_universal: raw.start_time_utc ? new Date(raw.start_time_utc) : undefined,
+    arrive_time_universal: raw.end_time_utc ? new Date(raw.end_time_utc) : undefined,
+    airline: undefined,
+    leave_location: undefined,
+    arrive_location: undefined,
     passengers: [],
-    hotel_name: null,
-    hotel_address: null,
-    breakfast_provided: false,
-    hotel_photo_url: null,
-    company: null,
-    transfer_photo_url: null,
-    driver: null,
-    car_photo_url: null,
-    cars: [], // Initialize for consistency
-    activity_photo_url: raw.activity_photo_url,
-    transport_tickets: [], // Initialize for consistency
-    additional_transfer_info: null, // Initialize
+    cars: [],
+    activity_photo_url: raw.activity_photo_url || undefined,
+    transport_tickets: [],
+    additional_transfer_info: undefined,
   }
 }
 
@@ -257,58 +242,52 @@ export function processAccommodationData(
     const baseEvent: ItineraryEvent = {
       id: acc.id,
       event_type: "accommodation",
-      // Prioritize acc.accomodation_name for the main card title and hotel_name property
       description: acc.accomodation_name || acc.hotel_name || "Accommodation",
-      booking_reference: acc.booking_reference, // Main accommodation booking reference
-      participants: parseParticipants(acc.participants, allParticipantProfiles), // Pass allParticipantProfiles
-      location: acc.hotel_city,
-      notes: acc.hotel_address, // Using address as notes for now
-      start_date: parseCustomDateString(acc.date_check_in_local),
-      end_date: parseCustomDateString(acc.date_check_out),
-      leave_time_local: null,
-      arrive_time_local: null,
-      leave_time_universal: acc.date_check_in_utc ? new Date(acc.date_check_in_utc) : null,
-      arrive_time_universal: acc.date_check_out_utc ? new Date(acc.date_check_out_utc) : null,
-      hotel_name: acc.accomodation_name || acc.hotel_name, // Use accomodation_name as the primary hotel_name
+      booking_reference: acc.booking_reference || undefined,
+      participants: parseParticipants(acc.participants ?? null, allParticipantProfiles),
+      location: acc.hotel_city || undefined,
+      notes: acc.hotel_address || undefined,
+      start_date: acc.date_check_in_local ? parseCustomDateString(acc.date_check_in_local) : undefined,
+      end_date: acc.date_check_out ? parseCustomDateString(acc.date_check_out) : undefined,
+      leave_time_local: undefined,
+      arrive_time_local: undefined,
+      leave_time_universal: acc.date_check_in_utc ? new Date(acc.date_check_in_utc) : undefined,
+      arrive_time_universal: acc.date_check_out_utc ? new Date(acc.date_check_out_utc) : undefined,
+      hotel_name: acc.accomodation_name || acc.hotel_name,
       hotel_address: acc.hotel_address,
       breakfast_provided: acc.breakfast_included === "Y",
-      hotel_photo_url: acc.hotel_photo_url, // Direct mapping for image
-      rooms: [], // Initialize rooms array for this specific accommodation
-      airline: null,
-      leave_location: null,
-      arrive_location: null,
+      hotel_photo_url: acc.hotel_photo_url || undefined,
+      rooms: [],
+      airline: undefined,
+      leave_location: undefined,
+      arrive_location: undefined,
       passengers: [],
-      company: null,
-      transfer_photo_url: null,
-      driver: null,
-      car_photo_url: null,
-      cars: [], // Initialize for consistency
-      activity_photo_url: null,
-      transport_tickets: [], // Initialize for consistency
-      additional_transfer_info: null, // Initialize
+      company: undefined,
+      transfer_photo_url: undefined,
+      car_photo_url: undefined,
+      cars: [],
+      activity_photo_url: undefined,
+      transport_tickets: [],
+      additional_transfer_info: undefined,
     }
 
     // Find all room configurations that belong to this specific accommodation entry
     // Linking ONLY using accomodation_name (trimmed and lowercased)
     const matchingRoomConfigs = rawRoomConfigs.filter((rc) => {
-      const rcAccName = rc.accomodation_name?.toLowerCase().trim()
-      const accAccName = acc.accomodation_name?.toLowerCase().trim()
-      const isNameMatch = rcAccName && accAccName && rcAccName === accAccName // Exact match after trim/lowercase
-
-      // console.log(`Comparing: acc.accomodation_name='${acc.accomodation_name}' (trimmed:'${accAccName}') with rc.accomodation_name='${rc.accomodation_name}' (trimmed:'${rcAccName}')`);
-      // console.log(`Result: NameMatch=${isNameMatch}`);
-
-      return isNameMatch
-    })
+      const rcAccName = rc.accomodation_name?.toLowerCase().trim() || undefined;
+      const accAccName = acc.accomodation_name?.toLowerCase().trim() || undefined;
+      const isNameMatch = rcAccName && accAccName && rcAccName === accAccName;
+      return isNameMatch;
+    });
 
     // Add room details to the base event
     matchingRoomConfigs.forEach((roomConfig) => {
       const roomDetail: RoomDetail = {
         id: roomConfig.id,
         room_type: roomConfig.room_type,
-        participants: parseParticipants(roomConfig.participants, allParticipantProfiles), // Pass allParticipantProfiles
-        notes: null, // No direct notes for room config, can be inferred later if needed
-        booking_reference: roomConfig.booking_reference, // Assign room-specific booking reference
+        participants: parseParticipants(roomConfig.participants, allParticipantProfiles),
+        notes: null,
+        booking_reference: roomConfig.booking_reference,
       }
       baseEvent.rooms!.push(roomDetail)
     })
@@ -381,7 +360,6 @@ export function processCarHireData(
         hotel_photo_url: null,
         company: null,
         transfer_photo_url: null,
-        driver: null, // Main driver for the group (can be first driver or null)
         car_photo_url: null, // Main photo for the group (can be first photo or null)
         activity_photo_url: null,
         transport_tickets: [], // Initialize for consistency
@@ -399,16 +377,16 @@ export function processCarHireData(
     // Create a CarDetail for the current raw car hire entry
     const carDetail: CarDetail = {
       id: raw.id,
-      car_name: `Car ${event.cars!.length + 1}`, // Name car as "Car 1", "Car 2", etc.
-      driver: resolvedDriverName, // Store resolved full name here
-      passengers: nonDriverPassengers, // Passengers excluding the driver
-      booking_reference: raw.booking_reference,
-      pickup_location: raw.pickup_location,
-      dropoff_location: raw.dropoff_location,
-      city_name: raw.city_name,
-      pickup_time_local: parseCustomDateString(raw.pickup_time_local),
-      dropoff_time_local: parseCustomDateString(raw.dropoff_time_local),
-      car_photo_url: raw.car_photo_url,
+      car_name: `Car ${event.cars!.length + 1}`,
+      driver: resolvedDriverName || undefined,
+      passengers: nonDriverPassengers,
+      booking_reference: raw.booking_reference || undefined,
+      pickup_location: raw.pickup_location || undefined,
+      dropoff_location: raw.dropoff_location || undefined,
+      city_name: raw.city_name || undefined,
+      pickup_time_local: raw.pickup_time_local ? parseCustomDateString(raw.pickup_time_local) : undefined,
+      dropoff_time_local: raw.dropoff_time_local ? parseCustomDateString(raw.dropoff_time_local) : undefined,
+      car_photo_url: raw.car_photo_url || undefined,
     }
     event.cars!.push(carDetail)
 

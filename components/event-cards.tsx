@@ -20,11 +20,12 @@ import {
   FootprintsIcon as Walk,
   CarTaxiFrontIcon as Taxi,
   Clock,
+  Umbrella,
 } from "lucide-react"
 import { format, differenceInDays, min, max } from "date-fns" // Import date-fns functions
 import { cn } from "@/lib/utils"
 import Image from "next/image"
-import type { ItineraryEvent, RoomDetail, ParticipantProfile } from "@/types/itinerary"
+import type { ItineraryEvent, RoomDetail, ParticipantProfile, TransportTicketDetail, CarDetail } from "@/types/itinerary"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -36,7 +37,10 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useState } from "react" // Import useState and useEffect
+import { useState, useEffect } from "react" // Import useState and useEffect
+import { EditActivityForm } from "@/components/edit-activity-form"
+import { createBrowserClient } from "@/lib/supabase-client"
+import { FootprintsIcon } from "lucide-react"
 
 interface ParticipantBadgeProps {
   name: string // This is the key used to look up the profile (e.g., "LJ")
@@ -45,6 +49,7 @@ interface ParticipantBadgeProps {
   allParticipantProfiles: Map<string, ParticipantProfile>
   allEvents?: ItineraryEvent[] // New prop for all events
   size?: "small" | "large" // New size prop
+  showTripDuration?: boolean // New prop to control trip duration display
 }
 
 // Function to generate a consistent color based on the name
@@ -76,6 +81,7 @@ export function ParticipantBadge({
   allParticipantProfiles,
   allEvents,
   size = "small", // Default to small for event cards
+  showTripDuration = false, // Default to false
 }: ParticipantBadgeProps) {
   const participantProfile = allParticipantProfiles.get(name)
   const displayInitials = participantProfile?.initials || name.toUpperCase().substring(0, 2)
@@ -112,14 +118,30 @@ export function ParticipantBadge({
   }
 
   // Find car details if applicable for car hire
-  let carDetailToDisplay: { type: "driver" | "passenger"; car: ItineraryEvent["cars"][0] } | null = null
-  if (event?.event_type === "car_hire" && event.cars) {
+  let carDetailToDisplay: { type: "driver" | "passenger"; car: { driver: string; passengers: string[]; car_name?: string; booking_reference?: string } } | null = null
+  if (event?.event_type === "car_hire" && event.cars && event.cars.length > 0) {
     for (const car of event.cars) {
-      if (car.driver === name) {
-        carDetailToDisplay = { type: "driver", car }
+      if (car.driver && car.driver === name) {
+        carDetailToDisplay = { 
+          type: "driver", 
+          car: {
+            driver: car.driver,
+            passengers: car.passengers || [],
+            car_name: car.car_name || undefined,
+            booking_reference: car.booking_reference || undefined
+          }
+        }
         break // Prioritize driver info
-      } else if (car.passengers.includes(name)) {
-        carDetailToDisplay = { type: "passenger", car }
+      } else if (car.passengers?.includes(name)) {
+        carDetailToDisplay = { 
+          type: "passenger", 
+          car: {
+            driver: car.driver || "",
+            passengers: car.passengers || [],
+            car_name: car.car_name || undefined,
+            booking_reference: car.booking_reference || undefined
+          }
+        }
         // Don't break yet, a later car might have them as a driver
       }
     }
@@ -133,7 +155,7 @@ export function ParticipantBadge({
     }
 
     setIsCalculatingTrip(true)
-    const participantEvents = allEvents.filter((e) => e.participants.includes(name))
+    const participantEvents = allEvents.filter((e) => e.participants?.includes(name) ?? false)
 
     if (participantEvents.length === 0) {
       setTripDuration("N/A (No events found for this participant)")
@@ -189,8 +211,9 @@ export function ParticipantBadge({
             <AvatarImage
               src={photoUrl || "/placeholder.svg"}
               alt={participantProfile?.name || name}
-              layout="fill"
-              objectFit="cover"
+              className="object-cover object-center w-full h-full"
+              width={size === "small" ? 48 : 96}
+              height={size === "small" ? 48 : 96}
             />
           ) : (
             <AvatarFallback>{displayInitials}</AvatarFallback>
@@ -208,23 +231,28 @@ export function ParticipantBadge({
               <Image
                 src={photoUrl || "/placeholder.svg"}
                 alt={participantProfile?.name || name}
-                layout="fill"
-                objectFit="cover"
+                className="object-cover object-center w-full h-full"
+                width={192}
+                height={192}
                 crossOrigin="anonymous"
               />
             </div>
           )}
           <p className="text-lg font-bold text-accent-pink mb-1">{participantProfile?.name || name}</p>{" "}
           {/* Changed text color to accent-pink */}
-          {isCalculatingTrip ? (
-            <p className="text-sm text-muted-foreground mt-2">Calculating trip...</p>
-          ) : (
-            tripDuration && (
-              <div className="flex items-center gap-2 text-sm text-gray-700 mt-2">
-                <Clock className="h-4 w-4 text-dark-teal" />
-                <span>Trip Duration: {tripDuration}</span>
-              </div>
-            )
+          {showTripDuration && (
+            <>
+              {isCalculatingTrip ? (
+                <p className="text-sm text-muted-foreground mt-2">Calculating trip...</p>
+              ) : (
+                tripDuration && (
+                  <div className="flex items-center gap-2 text-sm text-gray-700 mt-2">
+                    <Umbrella className="h-4 w-4 text-accent-pink" />
+                    <span>Holiday Length: {tripDuration}</span>
+                  </div>
+                )
+              )}
+            </>
           )}
           {/* Use isTicketedTransfer here */}
           {isTicketedTransfer && (ticketNumber || ticketBookingReference) && (
@@ -243,13 +271,7 @@ export function ParticipantBadge({
               )}
             </div>
           )}
-          {effectiveRoomType && (
-            <div className="flex items-center gap-2 text-sm text-gray-700 mt-2">
-              <Hotel className="h-4 w-4 text-dark-teal" />
-              <span>Room: {effectiveRoomType}</span>
-            </div>
-          )}
-          {carDetailToDisplay && (
+          {event?.event_type === "car_hire" && carDetailToDisplay && (
             <div className="flex flex-col items-center gap-1 text-sm text-gray-700 mt-2">
               <div className="flex items-center gap-2">
                 {carDetailToDisplay.type === "driver" ? (
@@ -259,8 +281,8 @@ export function ParticipantBadge({
                 )}
                 <span>
                   {carDetailToDisplay.type === "driver"
-                    ? `Driver of: ${carDetailToDisplay.car.car_name || "Car"}`
-                    : `Passenger in: ${carDetailToDisplay.car.car_name || "Car"}`}
+                    ? `Driver: ${carDetailToDisplay.car.car_name || "Car 1"}`
+                    : `Passenger: ${carDetailToDisplay.car.car_name || "Car 1"}`}
                 </span>
               </div>
               {carDetailToDisplay.car.booking_reference && (
@@ -269,6 +291,12 @@ export function ParticipantBadge({
                   <span>Booking: {carDetailToDisplay.car.booking_reference}</span>
                 </div>
               )}
+            </div>
+          )}
+          {effectiveRoomType && (
+            <div className="flex items-center gap-2 text-sm text-gray-700 mt-2">
+              <Hotel className="h-4 w-4 text-dark-teal" />
+              <span>Room: {effectiveRoomType}</span>
             </div>
           )}
         </div>
@@ -319,7 +347,6 @@ export function FlightCard({ event, allParticipantProfiles }: EventCardProps) {
           src={getEventImageQuery(event) || "/placeholder.svg"}
           alt={event.description || "Flight"}
           layout="fill"
-          objectFit="cover"
           className="rounded-t-xl"
           crossOrigin="anonymous"
         />
@@ -351,13 +378,14 @@ export function FlightCard({ event, allParticipantProfiles }: EventCardProps) {
           <Users className="h-4 w-4 text-dark-teal" /> {/* Kept h-4 w-4 for icon */}
           <span className="font-semibold text-sm">Passengers:</span>
           <div className="flex flex-wrap gap-1">
-            {event.passengers.map((p) => (
+            {event.passengers.map((p, idx) => (
               <ParticipantBadge
-                key={p}
+                key={`${p}-${idx}`}
                 name={p}
                 event={event}
                 allParticipantProfiles={allParticipantProfiles}
-                size="small" // Set size to small for event cards
+                size="small"
+                showTripDuration={false}
               />
             ))}
           </div>
@@ -381,8 +409,7 @@ export function AccommodationCard({ event, allParticipantProfiles }: EventCardPr
           src={getEventImageQuery(event) || "/placeholder.svg"}
           alt={event.description || "Accommodation"}
           layout="fill"
-          objectFit="cover"
-          className="rounded-t-xl"
+          className="rounded-t-xl object-cover"
           crossOrigin="anonymous"
         />
       </div>
@@ -508,13 +535,14 @@ function RoomDetailDisplay({ room, allParticipantProfiles }: RoomDetailDisplayPr
           <Users className="h-4 w-4 text-dark-teal" /> {/* Kept h-4 w-4 for icon */}
           <span className="font-semibold text-sm">Room Participants:</span>
           <div className="flex flex-wrap gap-1">
-            {room.participants.map((p) => (
+            {room.participants.map((p, idx) => (
               <ParticipantBadge
-                key={p}
+                key={`${p}-${idx}`}
                 name={p}
                 roomType={room.room_type || undefined}
                 allParticipantProfiles={allParticipantProfiles}
-                size="small" // Set size to small for event cards
+                size="small"
+                showTripDuration={false}
               />
             ))}
           </div>
@@ -524,7 +552,7 @@ function RoomDetailDisplay({ room, allParticipantProfiles }: RoomDetailDisplayPr
   )
 }
 
-const getTransferIcon = (transportMethod: string | null) => {
+const getTransferIcon = (transportMethod: string | undefined | null) => {
   const lowerMethod = transportMethod?.toLowerCase()
   switch (lowerMethod) {
     case "taxi":
@@ -545,13 +573,48 @@ const getTransferIcon = (transportMethod: string | null) => {
 }
 
 export function TransferActivityCard({ event, allParticipantProfiles }: EventCardProps) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const supabase = createBrowserClient()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error("Session error:", sessionError)
+          setIsAuthenticated(false)
+          setIsLoading(false)
+          return
+        }
+
+        setIsAuthenticated(!!session)
+      } catch (error) {
+        console.error("Error in checkAuth:", {
+          error,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        })
+        setIsAuthenticated(false)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    checkAuth()
+  }, [supabase.auth])
+
+  const handleActivityUpdated = () => {
+    window.location.reload()
+  }
+
   let CardIcon: React.ElementType
   let headerBg: string
   let headerText: string
   let iconColor: string
 
   if (event.event_type === "transfer") {
-    CardIcon = getTransferIcon(event.company)
+    CardIcon = getTransferIcon(event.company || null)
     headerBg = "bg-soft-yellow"
     headerText = "text-dark-teal"
     iconColor = "text-dark-teal"
@@ -566,25 +629,53 @@ export function TransferActivityCard({ event, allParticipantProfiles }: EventCar
   const iconSizeClass = (event.description?.length || 0) > 20 ? "h-8 w-8" : "h-6 w-6"
 
   return (
-    <Card className="w-full rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 animate-fade-in">
+    <Card className="relative overflow-hidden">
       <div className="relative w-full h-auto aspect-w-16 aspect-h-9">
         <Image
           src={getEventImageQuery(event) || "/placeholder.svg"}
-          alt={event.description || (event.event_type === "transfer" ? "Transfer" : "Activity")}
+          alt={event.event_type === "activity" ? event.activity_name || "Activity" : event.description || "Transfer"}
           layout="fill"
-          objectFit="cover"
-          className="rounded-t-xl"
+          className="rounded-t-xl object-cover"
           crossOrigin="anonymous"
         />
       </div>
-      <CardHeader className={cn("p-4 flex flex-row items-center justify-between", headerBg, headerText)}>
-        <div className="flex items-center gap-3">
-          <CardIcon className={cn(iconSizeClass)} /> {/* Apply dynamic size here */}
-          <h3 className="text-xl font-bold">
-            {event.description || (event.event_type === "transfer" ? "Transfer" : "Activity")}
-          </h3>
+      <CardHeader className={cn(
+        "p-4 pb-2",
+        event.event_type === "activity"
+          ? "bg-accent-pink text-white"
+          : "bg-soft-yellow text-dark-teal rounded-t-xl"
+      )}>
+        <div className="flex justify-between items-start">
+          <div className="flex items-center space-x-2">
+            {event.event_type === "activity" ? (
+              <FootprintsIcon className="h-5 w-5 text-white" />
+            ) : event.transport_type === "train" ? (
+              <Train className="h-5 w-5 text-accent-pink" />
+            ) : event.transport_type === "bus" ? (
+              <Bus className="h-5 w-5 text-accent-pink" />
+            ) : event.transport_type === "ferry" ? (
+              <Ferry className="h-5 w-5 text-accent-pink" />
+            ) : event.transport_type === "walk" ? (
+              <Walk className="h-5 w-5 text-accent-pink" />
+            ) : event.transport_type === "taxi" ? (
+              <Taxi className="h-5 w-5 text-accent-pink" />
+            ) : (
+              <Car className="h-5 w-5 text-accent-pink" />
+            )}
+            <h3 className="font-semibold text-lg">
+              {event.event_type === "activity"
+                ? event.activity_name || event.description || "Activity"
+                : event.description}
+            </h3>
+          </div>
+          {event.event_type === "activity" && isAuthenticated && !isLoading && (
+            <EditActivityForm
+              activity={event}
+              allParticipantProfiles={allParticipantProfiles}
+              onActivityUpdated={handleActivityUpdated}
+            />
+          )}
         </div>
-        {/* Removed event.company display from here */}
       </CardHeader>
       <CardContent className="p-4 grid gap-3">
         {/* Display "From" location */}
@@ -634,18 +725,42 @@ export function TransferActivityCard({ event, allParticipantProfiles }: EventCar
           <Users className={cn("h-4 w-4", iconColor)} /> {/* Kept h-4 w-4 for icon */}
           <span className="font-semibold text-sm">Participants:</span>
           <div className="flex flex-wrap gap-1">
-            {event.participants.map((p) => (
+            {event.participants.map((p, idx) => (
               <ParticipantBadge
-                key={p}
+                key={`${p}-${idx}`}
                 name={p}
                 event={event}
                 allParticipantProfiles={allParticipantProfiles}
-                size="small" // Set size to small for event cards
+                size="small"
+                showTripDuration={false}
               />
             ))}
           </div>
         </CardFooter>
       )}
+    </Card>
+  )
+}
+
+export function CarHireCard({ event, allParticipantProfiles }: EventCardProps) {
+  return (
+    <Card className="relative overflow-hidden">
+      <CardHeader className="p-4 pb-2">
+        <div className="flex justify-between items-start">
+          <div className="flex items-center space-x-2">
+            <Car className="h-5 w-5 text-accent-pink" />
+            <h3 className="font-semibold text-lg">Car Hire</h3>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 grid gap-3">
+        {event.cars?.map((car: CarDetail) => (
+          <div key={car.driver} className="flex items-center space-x-2">
+            <Car className="h-4 w-4 text-accent-pink" />
+            <span className="text-sm">Driver: {car.driver}</span>
+          </div>
+        ))}
+      </CardContent>
     </Card>
   )
 }

@@ -25,6 +25,7 @@ export function ParticipantGrid({ allParticipantProfiles, allEvents }: Participa
             allParticipantProfiles={allParticipantProfiles}
             allEvents={allEvents} // Pass all events for trip duration calculation
             size="large" // Set size to large for the participant grid
+            showTripDuration={true} // Set showTripDuration to true so that the trip duration is displayed in the popover
           />
           <p
             className={cn(

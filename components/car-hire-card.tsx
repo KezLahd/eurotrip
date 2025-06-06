@@ -100,7 +100,7 @@ export function CarHireCard({ event, allParticipantProfiles }: CarHireCardProps)
             </TabsList>
             {event.cars!.map((car) => (
               <TabsContent key={car.id} value={`car-${car.id}`} className="mt-4">
-                <CarDetailDisplay car={car} allParticipantProfiles={allParticipantProfiles} />
+                <CarDetailDisplay car={car} allParticipantProfiles={allParticipantProfiles} event={event} />
               </TabsContent>
             ))}
           </Tabs>
@@ -112,7 +112,7 @@ export function CarHireCard({ event, allParticipantProfiles }: CarHireCardProps)
             >
               {singleCar.car_name || "Car Details"}
             </Button>
-            <CarDetailDisplay car={singleCar} allParticipantProfiles={allParticipantProfiles} />
+            <CarDetailDisplay car={singleCar} allParticipantProfiles={allParticipantProfiles} event={event} />
           </div>
         ) : (
           <div className="mt-2 text-muted-foreground text-sm">
@@ -128,17 +128,21 @@ export function CarHireCard({ event, allParticipantProfiles }: CarHireCardProps)
 interface CarDetailDisplayProps {
   car: CarDetail
   allParticipantProfiles: Map<string, ParticipantProfile>
+  event: ItineraryEvent
 }
 
-function CarDetailDisplay({ car, allParticipantProfiles }: CarDetailDisplayProps) {
+function CarDetailDisplay({ car, allParticipantProfiles, event }: CarDetailDisplayProps) {
   return (
     <div className="grid gap-2">
       {car.driver && (
         <div className="flex items-center gap-2 text-sm">
           <UserRound className="h-4 w-4 text-dark-teal" />
           <span className="font-semibold">Driver:</span> {car.driver}
-          {/* Pass the resolved driver name to ParticipantBadge */}
-          <ParticipantBadge name={car.driver} allParticipantProfiles={allParticipantProfiles} />
+          <ParticipantBadge 
+            name={car.driver} 
+            event={event} 
+            allParticipantProfiles={allParticipantProfiles} 
+          />
         </div>
       )}
       {car.booking_reference && (
@@ -165,7 +169,12 @@ function CarDetailDisplay({ car, allParticipantProfiles }: CarDetailDisplayProps
           <span className="font-semibold text-sm">Passengers:</span>
           <div className="flex flex-wrap gap-1">
             {car.passengers.map((p) => (
-              <ParticipantBadge key={p} name={p} allParticipantProfiles={allParticipantProfiles} />
+              <ParticipantBadge 
+                key={p} 
+                name={p} 
+                event={event} 
+                allParticipantProfiles={allParticipantProfiles} 
+              />
             ))}
           </div>
         </div>
