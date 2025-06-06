@@ -11,19 +11,17 @@ interface ItineraryTimelineProps {
 }
 
 export function ContinuousTimeline({ events, allParticipantProfiles }: ItineraryTimelineProps) {
-  // Sort events chronologically based on event type
+  // Sort events chronologically by UTC time for all event types
   const sortedEvents = [...events].sort((a, b) => {
-    // For activities, prioritize local time
-    if (a.event_type === "activity" && b.event_type === "activity") {
-      const timeA = (a.leave_time_local || a.start_date)?.getTime() || Number.POSITIVE_INFINITY
-      const timeB = (b.leave_time_local || b.start_date)?.getTime() || Number.POSITIVE_INFINITY
-      return timeA - timeB
-    }
-    
-    // For other events, use the existing sorting logic
-    const timeA = (a.leave_time_universal || a.leave_time_local || a.start_date)?.getTime() || Number.POSITIVE_INFINITY
-    const timeB = (b.leave_time_universal || b.leave_time_local || b.start_date)?.getTime() || Number.POSITIVE_INFINITY
-    return timeA - timeB
+    // Helper to get a Date object from string or Date
+    const toDate = (val: string | Date | undefined | null) => {
+      if (!val) return undefined;
+      if (val instanceof Date) return val;
+      return new Date(val);
+    };
+    const timeA = (toDate(a.leave_time_universal) || toDate(a.start_time_utc) || toDate(a.leave_time_local) || toDate(a.start_date))?.getTime() || Number.POSITIVE_INFINITY;
+    const timeB = (toDate(b.leave_time_universal) || toDate(b.start_time_utc) || toDate(b.leave_time_local) || toDate(b.start_date))?.getTime() || Number.POSITIVE_INFINITY;
+    return timeA - timeB;
   })
 
   const isDesktop = useMediaQuery("(min-width: 768px)") // Tailwind's md breakpoint
