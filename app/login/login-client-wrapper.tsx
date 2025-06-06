@@ -74,8 +74,25 @@ export default function LoginClientWrapper({
       }, videoPlayDuration)
 
       // Redirect after the fade completes (videoPlayDuration + fade transition duration)
-      const redirectTimer = setTimeout(() => {
-        router.replace("/")
+      const redirectTimer = setTimeout(async () => {
+        // Force a session refresh to ensure the client-side session is up-to-date
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession()
+
+        if (sessionError) {
+          console.error("Error refreshing session after login:", sessionError.message)
+          // Even if there's an error, attempt to redirect to avoid being stuck
+          window.location.href = "/"
+        } else if (session) {
+          // If session is valid, redirect to the home page
+          window.location.href = "/"
+        } else {
+          // If no session after refresh (e.g., user signed out immediately after login),
+          // redirect to login page to ensure correct state.
+          window.location.href = "/login"
+        }
       }, videoPlayDuration + fadeTransitionDuration)
 
       return () => {
@@ -88,7 +105,7 @@ export default function LoginClientWrapper({
       setFadeToStaticBackground(false)
       setShowWelcomePopup(false)
     }
-  }, [isAuthenticated, checkingSession, router]) // Dependencies for this effect
+  }, [isAuthenticated, checkingSession, router, supabase]) // Dependencies for this effect
 
   const handleLoginSuccess = () => {
     // This function is called by AuthForm.
