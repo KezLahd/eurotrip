@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import AuthForm from "@/components/auth-form"
 import { LoginBackgroundVideo } from "@/components/login-background-video"
 import { createBrowserClient } from "@/lib/supabase-client"
-import { WelcomePopup } from "@/components/welcome-popup" // Import the new component
+import { WelcomePopup } from "@/components/welcome-popup"
 
 interface LoginClientWrapperProps {
   landscapeVideoUrl: string | null
@@ -24,12 +24,12 @@ export default function LoginClientWrapper({
   const [checkingSession, setCheckingSession] = useState(true)
   const [showAuthForm, setShowAuthForm] = useState(true)
   const [fadeToStaticBackground, setFadeToStaticBackground] = useState(false)
-  const [showWelcomePopup, setShowWelcomePopup] = useState(false) // New state for popup
-  const router = useRouter()
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false)
 
+  const router = useRouter()
   const supabase = useMemo(() => createBrowserClient(), [])
 
-  // Effect 1: Check session on initial load and set up auth listener
+  // Effect 1: Session check + auth listener
   useEffect(() => {
     let authListenerSubscription: any
 
@@ -37,9 +37,8 @@ export default function LoginClientWrapper({
       const {
         data: { session },
       } = await supabase.auth.getSession()
-      if (session) {
-        setIsAuthenticated(true)
-      }
+
+      setIsAuthenticated(!!session)
       setCheckingSession(false)
     }
 
@@ -48,8 +47,9 @@ export default function LoginClientWrapper({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session) // Update isAuthenticated based on session presence
+      setIsAuthenticated(!!session)
     })
+
     authListenerSubscription = subscription
 
     return () => {
@@ -59,42 +59,39 @@ export default function LoginClientWrapper({
     }
   }, [supabase])
 
-  // Effect 2: Handle post-authentication flow (video play, fade, redirect)
+  // Removed the problematic early return here.
+  // The redirect logic will now be handled exclusively by Effect 2.
+
+  // Effect 2: Post-login transition flow
   useEffect(() => {
     if (isAuthenticated && !checkingSession) {
-      setShowAuthForm(false) // Hide form
-      setShowWelcomePopup(true) // Show welcome popup
+      setShowAuthForm(false)
+      setShowWelcomePopup(true)
 
-      const videoPlayDuration = 3000 // 3 seconds (changed from 2000)
-      const fadeTransitionDuration = 800 // 800ms, matches CSS transition
+      const videoPlayDuration = 3000
+      const fadeTransitionDuration = 800
 
-      // Start the fade to static background after videoPlayDuration
       const fadeTimer = setTimeout(() => {
         setFadeToStaticBackground(true)
       }, videoPlayDuration)
 
-      // Redirect after the fade completes (videoPlayDuration + fade transition duration)
       const redirectTimer = setTimeout(() => {
         window.location.replace("/")
-      }, videoPlayDuration + fadeTransitionDuration) // This will be 3800ms (3000 + 800)
+      }, videoPlayDuration + fadeTransitionDuration)
 
       return () => {
         clearTimeout(fadeTimer)
         clearTimeout(redirectTimer)
       }
     } else if (!isAuthenticated && !checkingSession) {
-      // If not authenticated and session check is done, show form
       setShowAuthForm(true)
       setFadeToStaticBackground(false)
       setShowWelcomePopup(false)
     }
-  }, [isAuthenticated, checkingSession, router]) // Dependencies for this effect
+  }, [isAuthenticated, checkingSession]) // Dependencies for this effect
 
   const handleLoginSuccess = () => {
-    // This function is called by AuthForm.
-    // The onAuthStateChange listener in Effect 1 will detect the new session
-    // and update `isAuthenticated`, which in turn triggers Effect 2.
-    // No direct state changes needed here for the video/redirect flow.
+    // No manual changes needed — session listener will handle it
   }
 
   if (checkingSession) {
