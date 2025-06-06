@@ -1,4 +1,4 @@
-import { type ItineraryEvent, FlightCard, AccommodationCard, TransferActivityCard } from "@/components/event-cards"
+import { type ItineraryEvent, FlightCard, AccommodationCard, TransferActivityCard, CarHireCard } from "@/components/event-cards"
 import { format } from "date-fns"
 
 interface ItineraryTimelineProps {
@@ -7,29 +7,45 @@ interface ItineraryTimelineProps {
 
 // Helper component for displaying time and date with dynamic labels
 function EventTimeDisplay({ event }: { event: ItineraryEvent }) {
-  let primaryTime: Date | null = null
-  let secondaryTime: Date | null = null
+  let primaryTime: string | null = null
+  let secondaryTime: string | null = null
   let primaryLabel = "Time"
   let secondaryLabel = ""
 
   switch (event.event_type) {
     case "flight":
+      primaryTime = (event as any).departure_time_local || null
+      secondaryTime = (event as any).arrival_time_local || null
+      primaryLabel = "Departure"
+      secondaryLabel = "Arrival"
+      break
     case "transfer":
+      primaryTime = (event as any).departure_time_local || null
+      secondaryTime = (event as any).arrival_time_local || null
+      primaryLabel = "Departure"
+      secondaryLabel = "Arrival"
+      break
     case "car_hire":
-      primaryTime = event.leave_time_local
-      secondaryTime = event.arrive_time_local
-      primaryLabel = event.event_type === "car_hire" ? "Pickup" : "Departure"
-      secondaryLabel = event.event_type === "car_hire" ? "Dropoff" : "Arrival"
+      primaryTime = (event as any).pickup_time_local || null
+      secondaryTime = (event as any).dropoff_time_local || null
+      primaryLabel = "Pickup"
+      secondaryLabel = "Dropoff"
       break
     case "accommodation":
+      primaryTime = (event as any).date_check_in_local || null
+      secondaryTime = (event as any).date_check_out || null
+      primaryLabel = "Check-in"
+      secondaryLabel = "Check-out"
+      break
     case "activity":
-      primaryTime = event.start_date
-      secondaryTime = event.end_date
-      primaryLabel = event.event_type === "accommodation" ? "Check-in" : "Start"
-      secondaryLabel = event.event_type === "accommodation" ? "Check-out" : "End"
+      primaryTime = (event as any).start_time_local || null
+      secondaryTime = (event as any).end_time_local || null
+      primaryLabel = "Start"
+      secondaryLabel = "End"
       break
     default:
-      primaryTime = event.leave_time_local || event.start_date
+      primaryTime = null
+      secondaryTime = null
       primaryLabel = "Time"
       break
   }
@@ -37,20 +53,14 @@ function EventTimeDisplay({ event }: { event: ItineraryEvent }) {
   return (
     <>
       {primaryTime && (
-        <>
-          <p className="font-bold text-dark-teal text-sm md:text-base">
-            {primaryLabel}: {format(primaryTime, "HH:mm")}
-          </p>
-          <p className="text-xs text-muted-foreground hidden md:block">{format(primaryTime, "MMM dd, yyyy")}</p>
-        </>
+        <p className="font-bold text-dark-teal text-sm md:text-base">
+          {primaryLabel}: {primaryTime}
+        </p>
       )}
       {secondaryTime && (
-        <>
-          <p className="font-bold text-dark-teal text-sm md:text-base mt-2">
-            {secondaryLabel}: {format(secondaryTime, "HH:mm")}
-          </p>
-          <p className="text-xs text-muted-foreground hidden md:block">{format(secondaryTime, "MMM dd, yyyy")}</p>
-        </>
+        <p className="font-bold text-dark-teal text-sm md:text-base mt-2">
+          {secondaryLabel}: {secondaryTime}
+        </p>
       )}
       {!primaryTime && !secondaryTime && <p className="font-bold text-dark-teal text-sm md:text-base">N/A</p>}
     </>
@@ -88,11 +98,10 @@ export function ItineraryTimeline({ events }: ItineraryTimelineProps) {
 
               {/* Event Card */}
               <div className="flex-grow">
-                {event.event_type === "flight" && <FlightCard event={event} />}
-                {event.event_type === "accommodation" && <AccommodationCard event={event} />}
-                {(event.event_type === "transfer" ||
-                  event.event_type === "car_hire" ||
-                  event.event_type === "activity") && <TransferActivityCard event={event} />}
+                {event.event_type === "flight" && <FlightCard event={event} allParticipantProfiles={new Map()} />}
+                {event.event_type === "accommodation" && <AccommodationCard event={event} allParticipantProfiles={new Map()} />}
+                {event.event_type === "car_hire" && <CarHireCard event={event} allParticipantProfiles={new Map()} />}
+                {(event.event_type === "transfer" || event.event_type === "activity") && <TransferActivityCard event={event} allParticipantProfiles={new Map()} />}
                 {event.event_type === "unknown" && (
                   <div className="bg-gray-100 p-4 rounded-lg shadow-sm text-sm text-gray-600">
                     <p className="font-semibold">Unknown Event Type:</p>

@@ -106,7 +106,7 @@ export function transformFlight(
     booking_reference: raw.booking_reference || undefined,
     participants: parseParticipants(raw.passengers ?? null, allParticipantProfiles),
     location: raw.arrival_city || undefined,
-    notes: undefined, // No direct mapping in new schema
+    notes: undefined,
     start_date: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : undefined,
     end_date: raw.arrival_time_local ? parseCustomDateString(raw.arrival_time_local) : undefined,
     leave_time_local: raw.departure_time_local ? parseCustomDateString(raw.departure_time_local) : undefined,
@@ -117,10 +117,8 @@ export function transformFlight(
     leave_location: raw.departure_city || undefined,
     arrive_location: raw.arrival_city || undefined,
     passengers: parseParticipants(raw.passengers ?? null, allParticipantProfiles),
-    hotel_photo_url: undefined,
     company: undefined,
     transfer_photo_url: raw.flight_photo_url || undefined,
-    car_photo_url: undefined,
     cars: [],
     activity_photo_url: undefined,
     transport_tickets: [],
@@ -188,7 +186,6 @@ export function transformTransfer(
     passengers: [],
     company: raw.transport_method || undefined,
     transfer_photo_url: raw.transfer_photo_url || undefined,
-    car_photo_url: undefined,
     cars: [],
     activity_photo_url: undefined,
     transport_tickets: transformedTickets,
@@ -223,6 +220,8 @@ export function transformActivity(
     activity_photo_url: raw.activity_photo_url || undefined,
     transport_tickets: [],
     additional_transfer_info: undefined,
+    start_time_local: raw.start_time_local || undefined,
+    end_time_local: raw.end_time_local || undefined,
   }
 }
 
@@ -253,10 +252,6 @@ export function processAccommodationData(
       arrive_time_local: undefined,
       leave_time_universal: acc.date_check_in_utc ? new Date(acc.date_check_in_utc) : undefined,
       arrive_time_universal: acc.date_check_out_utc ? new Date(acc.date_check_out_utc) : undefined,
-      hotel_name: acc.accomodation_name || acc.hotel_name,
-      hotel_address: acc.hotel_address,
-      breakfast_provided: acc.breakfast_included === "Y",
-      hotel_photo_url: acc.hotel_photo_url || undefined,
       rooms: [],
       airline: undefined,
       leave_location: undefined,
@@ -264,11 +259,15 @@ export function processAccommodationData(
       passengers: [],
       company: undefined,
       transfer_photo_url: undefined,
-      car_photo_url: undefined,
       cars: [],
       activity_photo_url: undefined,
       transport_tickets: [],
       additional_transfer_info: undefined,
+      hotel_photo_url: acc.hotel_photo_url || undefined,
+      // @ts-ignore: allow custom fields for timeline display
+      date_check_in_local: acc.date_check_in_local || undefined,
+      // @ts-ignore: allow custom fields for timeline display
+      date_check_out: acc.date_check_out || undefined,
     }
 
     // Find all room configurations that belong to this specific accommodation entry
@@ -336,76 +335,69 @@ export function processCarHireData(
     if (!event) {
       // Create a new ItineraryEvent for this group
       event = {
-        id: raw.id, // Use the ID of the first car hire in the group as the main event ID
+        id: raw.id,
         event_type: "car_hire",
-        description: `Car Hire in ${raw.city_name || "Multiple Cities"}`, // Generic description for grouped
-        booking_reference: null, // Main booking reference might not be consistent across grouped cars
-        participants: [], // Will aggregate from individual cars and drivers
-        location: raw.city_name, // Main city for the group
-        notes: null,
-        start_date: parseCustomDateString(raw.pickup_time_local), // Start date of the first car
-        end_date: parseCustomDateString(raw.dropoff_time_local), // End date of the first car
-        leave_time_local: parseCustomDateString(raw.pickup_time_local),
-        arrive_time_local: parseCustomDateString(raw.dropoff_time_local),
-        leave_time_universal: raw.pickup_time_utc ? new Date(raw.pickup_time_utc) : null,
-        arrive_time_universal: raw.dropoff_time_utc ? new Date(raw.dropoff_time_utc) : null,
-        cars: [], // Initialize cars array
-        airline: null,
-        leave_location: null,
-        arrive_location: null,
+        description: `Car Hire in ${raw.city_name || "Multiple Cities"}`,
+        booking_reference: raw.booking_reference || undefined,
+        participants: [],
+        location: raw.city_name || undefined,
+        notes: undefined,
+        start_date: raw.pickup_time_local ? parseCustomDateString(raw.pickup_time_local) : undefined,
+        end_date: raw.dropoff_time_local ? parseCustomDateString(raw.dropoff_time_local) : undefined,
+        leave_time_local: raw.pickup_time_local ? parseCustomDateString(raw.pickup_time_local) : undefined,
+        arrive_time_local: raw.dropoff_time_local ? parseCustomDateString(raw.dropoff_time_local) : undefined,
+        leave_time_universal: raw.pickup_time_utc ? new Date(raw.pickup_time_utc) : undefined,
+        arrive_time_universal: raw.dropoff_time_utc ? new Date(raw.dropoff_time_utc) : undefined,
+        cars: [],
+        airline: undefined,
+        leave_location: undefined,
+        arrive_location: undefined,
         passengers: [],
-        hotel_name: null,
-        hotel_address: null,
-        breakfast_provided: false,
-        hotel_photo_url: null,
-        company: null,
-        transfer_photo_url: null,
-        car_photo_url: null, // Main photo for the group (can be first photo or null)
-        activity_photo_url: null,
-        transport_tickets: [], // Initialize for consistency
-        additional_transfer_info: null, // Initialize
+        company: undefined,
+        transfer_photo_url: undefined,
+        activity_photo_url: undefined,
+        transport_tickets: [],
+        additional_transfer_info: undefined,
       }
       groupedCarHires.set(groupingKey, event)
     }
 
+    // --- NEW: Always add a CarDetail for each car_hire row ---
     // Resolve driver and passengers to full names
-    const resolvedDriverName = raw.driver ? parseParticipants(raw.driver, allParticipantProfiles)[0] : null
-    const allResolvedPassengers = parseParticipants(raw.passengers, allParticipantProfiles)
-    // Filter out the resolved driver from the passengers list
-    const nonDriverPassengers = allResolvedPassengers.filter((p) => p !== resolvedDriverName)
-
-    // Create a CarDetail for the current raw car hire entry
+    const driverFullName = raw.driver ? parseParticipants(raw.driver, allParticipantProfiles)[0] : null;
+    const allPassengerFullNames = parseParticipants(raw.passengers, allParticipantProfiles);
+    const passengers = driverFullName ? allPassengerFullNames.filter(p => p !== driverFullName) : allPassengerFullNames;
     const carDetail: CarDetail = {
       id: raw.id,
       car_name: `Car ${event.cars!.length + 1}`,
-      driver: resolvedDriverName || undefined,
-      passengers: nonDriverPassengers,
-      booking_reference: raw.booking_reference || undefined,
-      pickup_location: raw.pickup_location || undefined,
-      dropoff_location: raw.dropoff_location || undefined,
-      city_name: raw.city_name || undefined,
-      pickup_time_local: raw.pickup_time_local ? parseCustomDateString(raw.pickup_time_local) : undefined,
-      dropoff_time_local: raw.dropoff_time_local ? parseCustomDateString(raw.dropoff_time_local) : undefined,
-      car_photo_url: raw.car_photo_url || undefined,
-    }
-    event.cars!.push(carDetail)
+      driver: driverFullName,
+      passengers: passengers,
+      booking_reference: raw.booking_reference || null,
+      pickup_location: raw.pickup_location || null,
+      dropoff_location: raw.dropoff_location || null,
+      city_name: raw.city_name || null,
+      pickup_time_local: raw.pickup_time_local ? parseCustomDateString(raw.pickup_time_local) || null : null,
+      dropoff_time_local: raw.dropoff_time_local ? parseCustomDateString(raw.dropoff_time_local) || null : null,
+      car_photo_url: raw.car_photo_url || null,
+    };
+    event.cars!.push(carDetail);
 
     // Aggregate participants for the main event (drivers + non-driver passengers)
     const currentParticipants = new Set(event.participants)
-    if (resolvedDriverName) {
-      currentParticipants.add(resolvedDriverName)
-    }
-    nonDriverPassengers.forEach((p) => currentParticipants.add(p))
+    if (driverFullName) currentParticipants.add(driverFullName)
+    passengers.forEach((p) => currentParticipants.add(p))
     event.participants = Array.from(currentParticipants)
 
     // Update main event's start/end times if this car hire has earlier start or later end
-    if (carDetail.pickup_time_local && (!event.start_date || carDetail.pickup_time_local < event.start_date)) {
-      event.start_date = carDetail.pickup_time_local
-      event.leave_time_local = carDetail.pickup_time_local
+    const pickupDate = raw.pickup_time_local ? parseCustomDateString(raw.pickup_time_local) : undefined;
+    const dropoffDate = raw.dropoff_time_local ? parseCustomDateString(raw.dropoff_time_local) : undefined;
+    if (pickupDate && (!event.start_date || pickupDate < event.start_date)) {
+      event.start_date = pickupDate;
+      event.leave_time_local = pickupDate;
     }
-    if (carDetail.dropoff_time_local && (!event.end_date || carDetail.dropoff_time_local > event.end_date)) {
-      event.end_date = carDetail.dropoff_time_local
-      event.arrive_time_local = carDetail.dropoff_time_local
+    if (dropoffDate && (!event.end_date || dropoffDate > event.end_date)) {
+      event.end_date = dropoffDate;
+      event.arrive_time_local = dropoffDate;
     }
   })
 

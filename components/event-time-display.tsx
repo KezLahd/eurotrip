@@ -1,4 +1,4 @@
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import type { ItineraryEvent } from "@/types/itinerary"
 
 interface EventTimeDisplayProps {
@@ -6,67 +6,104 @@ interface EventTimeDisplayProps {
   type: "primary" | "secondary"
 }
 
+// Helper function to format time string from 24h to 12h with AM/PM and also return the date
+function formatDateAndTime(timeStr: string | null): string | null {
+  if (!timeStr) return null;
+  try {
+    // Try parsing with seconds first
+    let date = parse(timeStr, "yyyy-MM-dd HH:mm:ss", new Date());
+    if (!isNaN(date.getTime())) {
+      return `${format(date, "MMM d")}, ${format(date, "h:mm a")}`;
+    }
+    // Fallback: Try parsing without seconds
+    date = parse(timeStr, "yyyy-MM-dd HH:mm", new Date());
+    if (!isNaN(date.getTime())) {
+      return `${format(date, "MMM d")}, ${format(date, "h:mm a")}`;
+    }
+    // Fallback: Try parsing as ISO string
+    date = new Date(timeStr);
+    if (!isNaN(date.getTime())) {
+      return `${format(date, "MMM d")}, ${format(date, "h:mm a")}`;
+    }
+    // If parsing fails, return the original string
+    return timeStr;
+  } catch (e) {
+    // If parsing fails, return the original string
+    console.warn("Could not parse time string:", timeStr);
+    return timeStr;
+  }
+}
+
 export function EventTimeDisplay({ event, type }: EventTimeDisplayProps) {
-  let time: Date | null = null
+  let time: string | null = null
   let labelPrefix = ""
 
-  if (type === "primary") {
-    time =
-      event.event_type === "flight" || event.event_type === "transfer" || event.event_type === "car_hire"
-        ? event.leave_time_local
-        : event.start_date
+  function ensureString(val: string | Date | null | undefined): string | null {
+    if (!val) return null;
+    if (typeof val === 'string') return val;
+    if (val instanceof Date) return val.toISOString();
+    return null;
+  }
 
+  if (type === "primary") {
     switch (event.event_type) {
       case "flight":
-        labelPrefix = "Departure: "
-        break
+        time = ensureString((event as any).departure_time_local || event.start_time_local || event.leave_time_local || null);
+        labelPrefix = "Departure: ";
+        break;
       case "transfer":
-        labelPrefix = "Departure: "
-        break
+        time = ensureString((event as any).departure_time_local || event.start_time_local || event.leave_time_local || null);
+        labelPrefix = "Departure: ";
+        break;
       case "car_hire":
-        labelPrefix = "Pickup: "
-        break
+        time = ensureString((event as any).pickup_time_local || event.start_time_local || event.leave_time_local || null);
+        labelPrefix = "Pickup: ";
+        break;
       case "accommodation":
-        labelPrefix = "Check-in: "
-        break
+        time = ensureString((event as any).date_check_in_local || event.start_time_local || event.leave_time_local || null);
+        labelPrefix = "Check-in: ";
+        break;
       case "activity":
-        labelPrefix = "Start: "
-        break
+        time = ensureString(event.start_time_local || null);
+        labelPrefix = "Start: ";
+        break;
       default:
-        labelPrefix = "Time: "
+        time = ensureString(event.start_time_local || event.leave_time_local || null);
+        labelPrefix = "Time: ";
     }
   } else {
     // type === "secondary"
-    time =
-      event.event_type === "flight" || event.event_type === "transfer" || event.event_type === "car_hire"
-        ? event.arrive_time_local
-        : event.end_date
-
     switch (event.event_type) {
       case "flight":
-        labelPrefix = "Arrival: "
-        break
+        time = ensureString((event as any).arrival_time_local || event.end_time_local || event.arrive_time_local || null);
+        labelPrefix = "Arrival: ";
+        break;
       case "transfer":
-        labelPrefix = "Arrival: "
-        break
+        time = ensureString((event as any).arrival_time_local || event.end_time_local || event.arrive_time_local || null);
+        labelPrefix = "Arrival: ";
+        break;
       case "car_hire":
-        labelPrefix = "Dropoff: "
-        break
+        time = ensureString((event as any).dropoff_time_local || event.end_time_local || event.arrive_time_local || null);
+        labelPrefix = "Dropoff: ";
+        break;
       case "accommodation":
-        labelPrefix = "Check-out: "
-        break
+        time = ensureString((event as any).date_check_out || event.end_time_local || event.arrive_time_local || null);
+        labelPrefix = "Check-out: ";
+        break;
       case "activity":
-        labelPrefix = "End: "
-        break
+        time = ensureString(event.end_time_local || null);
+        labelPrefix = "End: ";
+        break;
       default:
-        labelPrefix = "End Time: "
+        time = ensureString(event.end_time_local || event.arrive_time_local || null);
+        labelPrefix = "End Time: ";
     }
   }
 
   if (!time) return null
 
-  // Format as "MMM dd, yyyy HH:mm"
-  const formattedDateTime = format(time, "MMM dd, yyyy hh:mm a")
+  // Format the time to 'Jun 19, 3:00 PM' (no year)
+  const formattedDateTime = formatDateAndTime(time)
 
   return (
     <div className="text-base text-gray-700 whitespace-nowrap bg-light-blue p-1 rounded-md shadow-sm">
