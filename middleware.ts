@@ -27,7 +27,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  response.headers.set("x-url", request.nextUrl.pathname)
   return response
 }
 
