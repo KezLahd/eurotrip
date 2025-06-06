@@ -1,30 +1,29 @@
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createServerClient } from "@/lib/supabase-client" // Using your existing server client
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
-  // Pass request.cookies to createServerClient for middleware
-  const supabase = createServerClient(request.cookies)
+  const supabase = createMiddlewareClient({ req: request, res: response })
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: { session } } = await supabase.auth.getSession()
 
-  const { pathname } = request.nextUrl
+  const pathname = request.nextUrl.pathname
+  const isLoginPage = pathname === "/login"
+  const isProtectedPage = pathname === "/"
 
-  // If the user is not authenticated and tries to access a protected route (not /login)
-  if (!session && pathname !== "/login") {
-    const url = request.nextUrl.clone()
-    url.pathname = "/login"
-    return NextResponse.redirect(url)
+  // Redirect unauthenticated users away from protected routes
+  if (!session && isProtectedPage) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = "/login"
+    return NextResponse.redirect(loginUrl)
   }
 
-  // If the user is authenticated and tries to access the login page, redirect to home
-  if (session && pathname === "/login") {
-    const url = request.nextUrl.clone()
-    url.pathname = "/"
-    return NextResponse.redirect(url)
+  // Redirect authenticated users away from login page
+  if (session && isLoginPage) {
+    const homeUrl = request.nextUrl.clone()
+    homeUrl.pathname = "/"
+    return NextResponse.redirect(homeUrl)
   }
 
   return response
@@ -32,16 +31,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - /icon- (PWA icons)
-     * - /manifest.ts (PWA manifest)
-     * - /placeholder.svg (placeholder images)
-     * - /api (API routes)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|icon-|manifest.ts|placeholder.svg|api).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon-|manifest|placeholder.svg|api).*)",
   ],
 }
