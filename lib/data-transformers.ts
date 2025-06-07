@@ -123,6 +123,10 @@ export function transformFlight(
     activity_photo_url: undefined,
     transport_tickets: [],
     additional_transfer_info: undefined,
+    // @ts-ignore: allow custom fields for timeline display
+    departure_time_local: raw.departure_time_local || undefined,
+    // @ts-ignore: allow custom fields for timeline display
+    arrival_time_local: raw.arrival_time_local || undefined,
   }
 }
 
@@ -190,6 +194,10 @@ export function transformTransfer(
     activity_photo_url: undefined,
     transport_tickets: transformedTickets,
     additional_transfer_info: additionalInfo,
+    // @ts-ignore: allow custom fields for timeline display
+    departure_time_local: raw.departure_time_local || undefined,
+    // @ts-ignore: allow custom fields for timeline display
+    arrival_time_local: raw.arrival_time_local || undefined,
   }
 }
 
