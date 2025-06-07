@@ -453,7 +453,7 @@ export default function SuggestedActivitiesPage() {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Activity</DialogTitle>
           </DialogHeader>

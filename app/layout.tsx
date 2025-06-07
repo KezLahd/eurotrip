@@ -20,6 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/Image_fx (38).png" type="image/png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body>
         <CurrentParticipantProvider>
