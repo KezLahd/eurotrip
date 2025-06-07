@@ -252,7 +252,12 @@ export function ItineraryTabs({
                   <SelectItem value="accommodation">Accommodation</SelectItem>
                   <SelectItem value="activities">Activities</SelectItem>
                   <SelectItem value="participants">Participants</SelectItem>
-                  <SelectItem value="suggested-activities">Suggested Activities</SelectItem>
+                  <SelectItem 
+                    value="suggested-activities" 
+                    className="bg-accent-pink text-white font-bold hover:bg-pink-600 focus:bg-pink-700 transition-colors shine-effect"
+                  >
+                    Suggested Activities
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

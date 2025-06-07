@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ThumbsUp, ThumbsDown, DollarSign, Pencil, Trash2, Calendar, MapPin, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -59,6 +59,7 @@ export default function SuggestedActivitiesPage() {
   const supabase = createBrowserClient();
   const participant = useCurrentParticipant();
   const [expandedDetails, setExpandedDetails] = useState<{ [key: string]: boolean }>({});
+  const subscriptionRef = useRef<any>(null);
 
   // Fetch session on mount
   useEffect(() => {
@@ -72,35 +73,128 @@ export default function SuggestedActivitiesPage() {
   // Fetch activities, participants, and votes
   useEffect(() => {
     async function fetchData() {
-      const { data: activitiesData } = await supabase.from("suggested_activities").select("*");
-      setActivities((activitiesData as SuggestedActivity[]) || []);
-      // Fetch full participant profiles using correct field names
-      const { data: participantsData } = await supabase.from("participants").select("participant_name, participants_initials, participant_photo_url");
-      // Normalize participant data
-      const normalizedParticipants: { name: string; initials: string; photoUrl: string | null }[] = (participantsData as any[] || []).map(p => ({
-        name: p.participant_name,
-        initials: p.participants_initials,
-        photoUrl: p.participant_photo_url ?? null,
-      }));
-      setParticipants(normalizedParticipants);
-      if (participant) {
-        // Fetch all votes for all activities, join with participant names
-        const { data: votesData } = await supabase
-          .from("suggested_activity_votes")
-          .select("suggested_activity_id, participant_initials, vote_type, participants(name)");
-        // Map to include name
-        setVotes(
-          (votesData as any[] || []).map(v => ({
-            suggested_activity_id: v.suggested_activity_id,
-            participant_initials: v.participant_initials,
-            vote_type: v.vote_type,
-            name: v.participants?.name || v.participant_initials,
-          }))
-        );
+      try {
+        // Fetch activities
+        const { data: activitiesData, error: activitiesError } = await supabase
+          .from("suggested_activities")
+          .select("*");
+        
+        if (activitiesError) {
+          console.error("Error fetching activities:", activitiesError);
+          return;
+        }
+        setActivities((activitiesData as SuggestedActivity[]) || []);
+
+        // Fetch participant profiles
+        const { data: participantsData, error: participantsError } = await supabase
+          .from("participants")
+          .select("participant_name, participants_initials, participant_photo_url");
+        
+        if (participantsError) {
+          console.error("Error fetching participants:", participantsError);
+          return;
+        }
+
+        // Normalize participant data
+        const normalizedParticipants: { name: string; initials: string; photoUrl: string | null }[] = 
+          (participantsData as any[] || []).map(p => ({
+            name: p.participant_name,
+            initials: p.participants_initials,
+            photoUrl: p.participant_photo_url ?? null,
+          }));
+        setParticipants(normalizedParticipants);
+
+        if (participant) {
+          // Fetch votes with activity names
+          const { data: votesData, error: votesError } = await supabase
+            .from("suggested_activity_votes")
+            .select(`
+              suggested_activity_id,
+              participant_name,
+              vote_type,
+              voted_at,
+              suggested_activities (
+                id,
+                activity_name
+              )
+            `);
+
+          if (votesError) {
+            console.error("Error fetching votes:", votesError);
+            return;
+          }
+
+          // Map votes to include activity and participant info
+          setVotes(
+            (votesData as any[] || []).map(v => ({
+              suggested_activity_id: v.suggested_activity_id,
+              participant_initials: normalizedParticipants.find(p => p.name === v.participant_name)?.initials || v.participant_name,
+              vote_type: v.vote_type,
+              name: v.participant_name,
+              activity_name: v.suggested_activities?.activity_name
+            }))
+          );
+
+          // Only set up subscription if we don't already have one
+          if (!subscriptionRef.current) {
+            const votesSubscription = supabase
+              .channel('suggested_activity_votes_changes')
+              .on(
+                'postgres_changes',
+                {
+                  event: '*',
+                  schema: 'public',
+                  table: 'suggested_activity_votes'
+                },
+                async () => {
+                  // Refetch votes when changes occur
+                  const { data: updatedVotesData } = await supabase
+                    .from("suggested_activity_votes")
+                    .select(`
+                      suggested_activity_id,
+                      participant_name,
+                      vote_type,
+                      voted_at,
+                      suggested_activities (
+                        id,
+                        activity_name
+                      )
+                    `);
+                  
+                  if (updatedVotesData) {
+                    setVotes(
+                      (updatedVotesData as any[]).map(v => ({
+                        suggested_activity_id: v.suggested_activity_id,
+                        participant_initials: normalizedParticipants.find(p => p.name === v.participant_name)?.initials || v.participant_name,
+                        vote_type: v.vote_type,
+                        name: v.participant_name,
+                        activity_name: v.suggested_activities?.activity_name
+                      }))
+                    );
+                  }
+                }
+              )
+              .subscribe();
+
+            // Store the subscription in the ref
+            subscriptionRef.current = votesSubscription;
+          }
+        }
+      } catch (error) {
+        console.error("Error in fetchData:", error);
       }
     }
+
     fetchData();
-  }, [participant, supabase]);
+
+    // Cleanup function
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
+  }, [participant, supabase]); // Only re-run if participant or supabase client changes
 
   // Use Supabase session for role check
   useEffect(() => {
@@ -123,33 +217,106 @@ export default function SuggestedActivitiesPage() {
 
   // Handler for voting
   const handleVote = async (activity: SuggestedActivity, type: 'up' | 'down') => {
-    if (!participant) return;
-    const existingVote = votes.find(
-      (v) => v.suggested_activity_id === activity.id && v.participant_initials === participant.participants_initials
-    );
-    // If already voted the same way, remove the vote (toggle off)
-    if (existingVote && existingVote.vote_type === type) {
-      await supabase
-        .from("suggested_activity_votes")
-        .delete()
-        .eq("suggested_activity_id", activity.id)
-        .eq("participant_initials", participant.participants_initials);
-      setVotes((prev) => prev.filter((v) => v.suggested_activity_id !== activity.id));
+    if (!participant) {
+      toast.error("You must be logged in as a participant to vote");
       return;
     }
-    // Otherwise, upsert the new vote
-    const participantName = participants.find(p => p.initials === participant.participants_initials)?.name || participant.participants_initials;
-    await supabase.from("suggested_activity_votes").upsert([
-      {
-        suggested_activity_id: activity.id,
-        participant_initials: participant.participants_initials,
-        vote_type: type,
-      },
-    ], { onConflict: "suggested_activity_id,participant_initials" });
-    setVotes((prev) => [
-      ...prev.filter((v) => v.suggested_activity_id !== activity.id),
-      { suggested_activity_id: activity.id, participant_initials: participant.participants_initials, vote_type: type, name: participantName },
-    ]);
+
+    try {
+      // First verify the activity exists
+      const { data: activityData, error: activityError } = await supabase
+        .from("suggested_activities")
+        .select("id, activity_name")
+        .eq("id", activity.id)
+        .single();
+
+      if (activityError || !activityData) {
+        console.error("Error verifying activity:", activityError);
+        toast.error("Activity not found");
+        return;
+      }
+
+      const existingVote = votes.find(
+        (v) => v.suggested_activity_id === activity.id && v.name === participant.participant_name
+      );
+
+      // If already voted the same way, remove the vote (toggle off)
+      if (existingVote && existingVote.vote_type === type) {
+        const { error: deleteError } = await supabase
+          .from("suggested_activity_votes")
+          .delete()
+          .eq("suggested_activity_id", activity.id)
+          .eq("participant_name", participant.participant_name);
+
+        if (deleteError) {
+          console.error("Error deleting vote:", deleteError);
+          toast.error("Failed to remove vote");
+          return;
+        }
+
+        setVotes((prev) => prev.filter((v) => 
+          !(v.suggested_activity_id === activity.id && v.name === participant.participant_name)
+        ));
+        toast.success("Vote removed");
+        return;
+      }
+
+      // If voted the opposite way, remove the previous vote first
+      if (existingVote && existingVote.vote_type !== type) {
+        const { error: deleteError } = await supabase
+          .from("suggested_activity_votes")
+          .delete()
+          .eq("suggested_activity_id", activity.id)
+          .eq("participant_name", participant.participant_name);
+
+        if (deleteError) {
+          console.error("Error removing previous vote:", deleteError);
+          toast.error("Failed to change vote");
+          return;
+        }
+
+        // Update local state to remove the previous vote
+        setVotes((prev) => prev.filter((v) => 
+          !(v.suggested_activity_id === activity.id && v.name === participant.participant_name)
+        ));
+      }
+
+      // Insert the new vote
+      const { error: insertError } = await supabase
+        .from("suggested_activity_votes")
+        .insert([
+          {
+            suggested_activity_id: activity.id,
+            participant_name: participant.participant_name,
+            vote_type: type,
+            voted_at: new Date().toISOString()
+          }
+        ]);
+
+      if (insertError) {
+        console.error("Error inserting vote:", insertError);
+        toast.error("Failed to record vote");
+        return;
+      }
+
+      // Update local state
+      setVotes((prev) => [
+        ...prev.filter((v) => 
+          !(v.suggested_activity_id === activity.id && v.name === participant.participant_name)
+        ),
+        { 
+          suggested_activity_id: activity.id, 
+          participant_initials: participant.participants_initials, 
+          vote_type: type, 
+          name: participant.participant_name 
+        },
+      ]);
+      toast.success(`Vote ${type === 'up' ? 'up' : 'down'} recorded successfully`);
+
+    } catch (error) {
+      console.error("Error in handleVote:", error);
+      toast.error("An error occurred while voting");
+    }
   };
 
   // Add handlers for edit and delete
