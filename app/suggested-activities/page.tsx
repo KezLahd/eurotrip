@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, ThumbsUp, ThumbsDown, DollarSign, Pencil, Trash2, Calendar, MapPin, Clock } from "lucide-react";
+import { PlusCircle, ThumbsUp, ThumbsDown, DollarSign, Pencil, Trash2, Calendar, MapPin, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { createBrowserClient } from "@/lib/supabase-client";
@@ -58,6 +58,7 @@ export default function SuggestedActivitiesPage() {
   const [session, setSession] = useState<any>(null);
   const supabase = createBrowserClient();
   const participant = useCurrentParticipant();
+  const [expandedDetails, setExpandedDetails] = useState<{ [key: string]: boolean }>({});
 
   // Fetch session on mount
   useEffect(() => {
@@ -190,7 +191,7 @@ export default function SuggestedActivitiesPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 px-1">
       {/* List of suggested activities */}
       {activities.map((activity) => {
         const userVote = participant
@@ -203,8 +204,8 @@ export default function SuggestedActivitiesPage() {
         return (
           <div key={activity.id} className="border rounded-2xl shadow-lg p-0 flex flex-col bg-white overflow-hidden">
             {/* Pink ribbon header with admin controls */}
-            <div className="w-full bg-accent-pink py-4 px-6 flex items-center justify-between">
-              <span className="text-white text-3xl font-extrabold flex-1">{activity.activity_name}</span>
+            <div className="w-full bg-accent-pink py-3 px-4 flex items-center justify-between">
+              <span className="text-white text-xl font-bold flex-1">{activity.activity_name}</span>
               {userRole === "admin" ? (
                 <div className="flex gap-2">
                   <Button
@@ -213,7 +214,7 @@ export default function SuggestedActivitiesPage() {
                     className="text-white hover:bg-accent-pink/80"
                     onClick={() => handleEdit(activity)}
                   >
-                    <Pencil className="h-5 w-5" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -221,7 +222,7 @@ export default function SuggestedActivitiesPage() {
                     className="text-white hover:bg-accent-pink/80"
                     onClick={() => handleDelete(activity)}
                   >
-                    <Trash2 className="h-5 w-5" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               ) : (
@@ -232,7 +233,7 @@ export default function SuggestedActivitiesPage() {
                     className="text-white opacity-50 cursor-not-allowed"
                     onClick={() => setShowAdminError(true)}
                   >
-                    <Pencil className="h-5 w-5" />
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
@@ -240,56 +241,73 @@ export default function SuggestedActivitiesPage() {
                     className="text-white opacity-50 cursor-not-allowed"
                     onClick={() => setShowAdminError(true)}
                   >
-                    <Trash2 className="h-5 w-5" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               )}
             </div>
             {/* Image */}
             {activity.image_url && (
-              <div className="w-full aspect-[16/9] bg-white overflow-hidden flex items-center justify-center">
+              <div className="w-full aspect-[16/9] sm:aspect-[4/3] bg-white overflow-hidden flex items-center justify-center">
                 <img
                   src={activity.image_url}
                   alt={activity.activity_name}
-                  className="object-cover w-full h-full"
-                  style={{ aspectRatio: "16/9" }}
+                  className="w-full h-full object-contain sm:object-cover"
+                  style={{ aspectRatio: '16/9' }}
                 />
               </div>
             )}
             {/* Details */}
-            <div className="p-6">
-              <div className="w-full flex flex-wrap items-center justify-center gap-x-12 gap-y-4 mb-10 text-lg font-semibold text-gray-700">
-                {activity.location && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-6 w-6 text-accent-pink" />
-                    <span className="font-bold text-accent-pink">Location:</span>
-                    <span className="font-normal text-black">{activity.location}</span>
-                  </div>
-                )}
-                {activity.cost && (
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-6 w-6 text-accent-pink" />
-                    <span className="font-bold text-accent-pink">Cost:</span>
-                    <span className="font-normal text-black">{activity.cost}</span>
-                  </div>
-                )}
-                {activity.duration && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-6 w-6 text-accent-pink" />
-                    <span className="font-bold text-accent-pink">Duration:</span>
-                    <span className="font-normal text-black">{activity.duration}</span>
-                  </div>
-                )}
-                {activity.suggested_date && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-6 w-6 text-accent-pink" />
-                    <span className="font-bold text-accent-pink">Date:</span>
-                    <span className="font-normal text-black">{activity.suggested_date}</span>
+            <div className="p-3">
+              {/* Collapsible Details Section */}
+              <div className="mb-4">
+                <Button
+                  variant="ghost"
+                  className="w-full flex items-center justify-between p-1 hover:bg-gray-50 rounded-lg bg-accent-pink/5 min-h-0"
+                  onClick={() => setExpandedDetails(prev => ({ ...prev, [activity.id]: !prev[activity.id] }))}
+                >
+                  <span className="font-semibold text-accent-pink text-lg">Additional Details</span>
+                  {expandedDetails[activity.id] ? (
+                    <ChevronUp className="h-5 w-5 text-accent-pink" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-accent-pink" />
+                  )}
+                </Button>
+                {expandedDetails[activity.id] && (
+                  <div className="mt-1 space-y-1 pl-1 max-w-md mx-auto bg-gray-50/50 rounded-lg p-2">
+                    {activity.location && (
+                      <div className="flex items-center gap-2 text-base">
+                        <MapPin className="h-5 w-5 text-accent-pink flex-shrink-0" />
+                        <span className="font-semibold text-accent-pink min-w-[80px]">Location:</span>
+                        <span className="text-gray-600">{activity.location}</span>
+                      </div>
+                    )}
+                    {activity.cost && (
+                      <div className="flex items-center gap-2 text-base">
+                        <DollarSign className="h-5 w-5 text-accent-pink flex-shrink-0" />
+                        <span className="font-semibold text-accent-pink min-w-[80px]">Cost:</span>
+                        <span className="text-gray-600">{activity.cost}</span>
+                      </div>
+                    )}
+                    {activity.duration && (
+                      <div className="flex items-center gap-2 text-base">
+                        <Clock className="h-5 w-5 text-accent-pink flex-shrink-0" />
+                        <span className="font-semibold text-accent-pink min-w-[80px]">Duration:</span>
+                        <span className="text-gray-600">{activity.duration}</span>
+                      </div>
+                    )}
+                    {activity.suggested_date && (
+                      <div className="flex items-center gap-2 text-base">
+                        <Calendar className="h-5 w-5 text-accent-pink flex-shrink-0" />
+                        <span className="font-semibold text-accent-pink min-w-[80px]">Date:</span>
+                        <span className="text-gray-600">{activity.suggested_date}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
               {/* Voting */}
-              <div className="flex flex-col items-center justify-center mt-10 mb-2">
+              <div className="flex flex-col items-center justify-center mt-2 mb-1">
                 <div className="flex items-end gap-24 justify-center">
                   <div className="flex flex-col items-center">
                     <Button
@@ -341,9 +359,11 @@ export default function SuggestedActivitiesPage() {
         );
       })}
 
-      {/* More Activities Coming Soon message */}
-      <div className="w-full text-center font-bold text-lg text-accent-pink mt-8 mb-2">
-        More Activities Coming Soon
+      {/* Invisible Card with More Activities Coming Soon */}
+      <div className="border rounded-2xl shadow-lg p-0 flex flex-col bg-white overflow-hidden opacity-0">
+        <div className="w-full bg-accent-pink py-2 px-4">
+          <span className="text-white text-xl font-bold">More Activities Coming Soon</span>
+        </div>
       </div>
 
       {/* Vote Dialog */}

@@ -339,6 +339,12 @@ export function ItineraryTabs({
               </DialogContent>
             </Dialog>
           </TabsContent>
+          {/* Footer for all tabs */}
+          <div className="w-full py-4 flex justify-center items-center mt-8">
+            <footer className="w-full text-center text-lg font-bold" style={{ color: '#a020f0', opacity: 0.2 }}>
+              Powered by mjsons solutions &copy; 2025
+            </footer>
+          </div>
         </ScrollArea>
       </Tabs>
       <Dialog open={showAdminError} onOpenChange={setShowAdminError}>
