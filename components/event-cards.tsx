@@ -639,7 +639,7 @@ export function AccommodationCard({ event, allParticipantProfiles }: EventCardPr
   const hasAnyFood = !!event.additional_features_restaurant || !!event.additional_features_food_savoury || !!event.additional_features_food_sweet
 
   return (
-    <Card className="w-full max-w-[320px] sm:max-w-md mx-auto rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 animate-fade-in">
+    <Card className="w-full max-w-[320px] [@media(min-width:450px)]:max-w-none mx-auto rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 animate-fade-in">
       <div className="relative w-full h-auto aspect-w-16 aspect-h-9">
         <Image
           src={getEventImageQuery(event) || "/placeholder.svg"}
