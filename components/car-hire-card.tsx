@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { ParticipantBadge, getEventImageQuery } from "./event-cards"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import React from "react"
 
 interface CarHireCardProps {
   event: ItineraryEvent
@@ -23,8 +25,10 @@ interface CarHireCardProps {
 
 export function CarHireCard({ event, allParticipantProfiles }: CarHireCardProps) {
   const hasMultipleCars = event.cars && event.cars.length > 1
-  const defaultTabValue = hasMultipleCars ? `car-${event.cars![0].id}` : "single-car"
-  const singleCar = hasMultipleCars ? null : event.cars && event.cars.length === 1 ? event.cars[0] : null
+  const hasSingleCar = event.cars && event.cars.length === 1
+  const [selectedCarId, setSelectedCarId] = React.useState(
+    hasMultipleCars ? event.cars![0].id.toString() : hasSingleCar ? event.cars![0].id.toString() : ""
+  )
 
   return (
     <Card className="w-full rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 animate-fade-in">
@@ -84,35 +88,35 @@ export function CarHireCard({ event, allParticipantProfiles }: CarHireCardProps)
           <span className="font-semibold">Location:</span> {event.location || "N/A"}
         </div>
         {/* Removed time display from here */}
-
         {hasMultipleCars ? (
-          <Tabs defaultValue={defaultTabValue} className="w-full mt-2">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 h-auto p-1 bg-light-blue rounded-xl gap-1">
-              {event.cars!.map((car) => (
-                <TabsTrigger
-                  key={car.id}
-                  value={`car-${car.id}`}
-                  className="rounded-full data-[state=active]:bg-primary-blue data-[state=active]:text-white text-dark-teal font-semibold text-sm py-1 transition-all duration-300 hover:bg-medium-blue hover:text-white"
-                >
-                  {car.car_name || `Car ${car.id}`}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <div className="w-full mt-2">
+            <Select value={selectedCarId} onValueChange={setSelectedCarId}>
+              <SelectTrigger className="w-1/2 min-w-[180px] max-w-xs rounded-full bg-light-blue text-dark-teal font-semibold text-base py-2 px-4 shadow-sm">
+                <SelectValue placeholder="Select Car" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl bg-white shadow-lg">
+                {event.cars!.map((car) => (
+                  <SelectItem key={car.id} value={car.id.toString()}>{car.car_name || `Car ${car.id}`}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {event.cars!.map((car) => (
-              <TabsContent key={car.id} value={`car-${car.id}`} className="mt-4">
-                <CarDetailDisplay car={car} allParticipantProfiles={allParticipantProfiles} event={event} />
-              </TabsContent>
+              selectedCarId === car.id.toString() && (
+                <div key={car.id} className="mt-4">
+                  <CarDetailDisplay car={car} allParticipantProfiles={allParticipantProfiles} event={event} />
+                </div>
+              )
             ))}
-          </Tabs>
-        ) : singleCar ? (
+          </div>
+        ) : hasSingleCar ? (
           <div className="mt-2">
             <Button
               variant="outline"
               className="rounded-full px-4 py-2 text-base bg-dark-teal text-white hover:bg-dark-teal/90"
             >
-              {singleCar.car_name || "Car Details"}
+              {event.cars![0].car_name || "Car Details"}
             </Button>
-            <CarDetailDisplay car={singleCar} allParticipantProfiles={allParticipantProfiles} event={event} />
+            <CarDetailDisplay car={event.cars![0]} allParticipantProfiles={allParticipantProfiles} event={event} />
           </div>
         ) : (
           <div className="mt-2 text-muted-foreground text-sm">

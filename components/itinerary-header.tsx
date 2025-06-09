@@ -28,25 +28,11 @@ export function ItineraryHeader({ eventFilter, onEventFilterChange, isExpanded, 
   const firstName = participant ? participant.participant_name.split(" ")[0] : null
 
   return (
-    <header className="flex flex-col md:flex-row items-center justify-between px-2 py-4 md:px-8 backdrop-blur-sm shadow-sm rounded-b-xl z-10 relative animate-fade-in">
-      <div className="flex items-center gap-2 text-2xl font-bold text-accent-pink mb-4 md:mb-0">
+    <header className="flex flex-col md:flex-row items-center justify-between px-2 py-2 md:px-4 backdrop-blur-sm shadow-sm rounded-b-xl z-10 relative animate-fade-in">
+      <div className="flex items-center gap-2 text-2xl font-bold text-accent-pink mb-4 md:mb-0 flex-1 min-w-0">
         <Plane className="h-8 w-8 text-accent-pink" />
         {firstName && <span>{firstName}'s Eurotrip</span>}
         {!firstName && <span>Eurotrip</span>}
-      </div>
-
-      <div className="flex flex-col sm:flex-row items-center gap-4">
-        {/* Dropdown filter for all events vs my events */}
-        <Select value={eventFilter} onValueChange={onEventFilterChange}>
-          <SelectTrigger className="w-40 rounded-full bg-light-blue text-dark-teal font-semibold text-base py-2 px-4 shadow-sm">
-            <SelectValue placeholder="All Events" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl bg-white shadow-lg">
-            <SelectItem value="all">All Events</SelectItem>
-            <SelectItem value="mine">My Events</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* Show participant badge if logged in, next to sign out */}
         {participant && (
           <ParticipantBadge
             name={participant.participant_name}
@@ -56,9 +42,23 @@ export function ItineraryHeader({ eventFilter, onEventFilterChange, isExpanded, 
               photoUrl: participant.participant_photo_url || null
             }]])}
             size="small"
+            className="ml-3"
           />
         )}
-        <UserAuthButton />
+      </div>
+
+      <div className="flex flex-row items-center gap-2 min-w-0">
+        {/* Dropdown filter for all events vs my events */}
+        <Select value={eventFilter} onValueChange={onEventFilterChange}>
+          <SelectTrigger className="w-28 rounded-full bg-light-blue text-dark-teal font-semibold text-base py-1 px-3 shadow-sm min-w-0">
+            <SelectValue placeholder="All Events" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl bg-white shadow-lg">
+            <SelectItem value="all">All Events</SelectItem>
+            <SelectItem value="mine">My Events</SelectItem>
+          </SelectContent>
+        </Select>
+        <UserAuthButton className="ml-1" />
       </div>
 
       {/* New toggle area at the bottom of the header */}

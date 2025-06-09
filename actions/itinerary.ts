@@ -33,7 +33,7 @@ export async function fetchItineraryData(
   events: ItineraryEvent[]
   allParticipantProfiles: Map<string, ParticipantProfile>
 }> {
-  const supabase = createServerClient(cookies())
+  const supabase = createServerClient(await cookies())
   const allTransformedEvents: ItineraryEvent[] = []
   const allParticipantProfiles = new Map<string, ParticipantProfile>()
 
@@ -94,7 +94,7 @@ export async function fetchItineraryData(
 
     if (!category || category === "accommodation") {
       // Fetch accommodations and room configurations
-      const { data: rawAccommodations, error: accError } = await supabase.from("accomodation").select("*")
+      const { data: rawAccommodations, error: accError } = await supabase.from("accommodation").select("*")
       const { data: rawRoomConfigs, error: roomConfigError } = await supabase.from("room_configuration").select("*")
 
       if (accError) console.error("Error fetching accommodations:", accError.message)
@@ -112,35 +112,37 @@ export async function fetchItineraryData(
         allTransformedEvents.push(
           ...(rawAccommodations as RawAccommodation[]).map((acc) => ({
             id: acc.id,
-            event_type: "accommodation",
-            description: acc.accomodation_name || acc.hotel_name || "Accommodation",
-            booking_reference: acc.booking_reference,
+            event_type: 'accommodation' as const,
+            description: acc.accommodation_name || acc.hotel_name || "Accommodation",
+            booking_reference: acc.booking_reference || undefined,
             participants: parseParticipants(acc.participants, allParticipantProfiles),
-            location: acc.hotel_city,
-            notes: acc.hotel_address,
+            location: acc.hotel_city || undefined,
+            notes: acc.hotel_address || undefined,
             start_date: parseCustomDateString(acc.date_check_in_local),
             end_date: parseCustomDateString(acc.date_check_out),
-            leave_time_local: null,
-            arrive_time_local: null,
-            leave_time_universal: acc.date_check_in_utc ? new Date(acc.date_check_in_utc) : null,
-            arrive_time_universal: acc.date_check_out_utc ? new Date(acc.date_check_out_utc) : null,
-            hotel_name: acc.accomodation_name || acc.hotel_name,
+            leave_time_local: undefined,
+            arrive_time_local: undefined,
+            leave_time_universal: acc.date_check_in_utc ? new Date(acc.date_check_in_utc) : undefined,
+            arrive_time_universal: acc.date_check_out_utc ? new Date(acc.date_check_out_utc) : undefined,
+            hotel_name: acc.accommodation_name || acc.hotel_name,
             hotel_address: acc.hotel_address,
             breakfast_provided: acc.breakfast_included === "Y",
-            hotel_photo_url: acc.hotel_photo_url,
+            hotel_photo_url: acc.hotel_photo_url || undefined,
             rooms: [],
-            airline: null,
-            leave_location: null,
-            arrive_location: null,
+            airline: undefined,
+            leave_location: undefined,
+            arrive_location: undefined,
             passengers: [],
-            company: null,
-            transfer_photo_url: null,
-            driver: null,
-            car_photo_url: null,
+            company: undefined,
+            transfer_photo_url: undefined,
+            driver: undefined,
+            car_photo_url: undefined,
             cars: [],
-            activity_photo_url: null,
+            activity_photo_url: undefined,
             transport_tickets: [],
-            additional_transfer_info: null,
+            additional_transfer_info: undefined,
+            additional_features_gym: acc.additional_features_gym || undefined,
+            additional_features_restaurant: acc.additional_features_restaurant || undefined,
           })),
         )
       }

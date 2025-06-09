@@ -233,6 +233,42 @@ export function transformActivity(
   }
 }
 
+// Add new type for shopping data
+type ShoppingData = {
+  id: number;
+  accommodation_id: number;
+  shopping_name: string;
+  shopping_location: string;
+  shopping_distance: string;
+  shopping_rating: string;
+  shopping_photo_url: string;
+  shopping_times: string;
+  shopping_cost: string;
+}
+
+// Add new types for food data
+type SavouryFoodData = {
+  id: number;
+  accommodation_id: number;
+  food_name: string;
+  vendor_name: string | null;
+  vendor_location: string | null;
+  vendor_distance: string | null;
+  food_photo_url: string | null;
+  menu_url: string | null;
+}
+
+type SweetFoodData = {
+  id: number;
+  accommodation_id: number;
+  food_name: string;
+  vendor_name: string | null;
+  vendor_location: string | null;
+  vendor_distance: string | null;
+  food_photo_url: string | null;
+  menu_url: string | null;
+}
+
 /**
  * Processes raw accommodation events and their room configurations.
  * Each RawAccommodation becomes a distinct ItineraryEvent card.
@@ -241,7 +277,7 @@ export function transformActivity(
 export function processAccommodationData(
   rawAccommodations: RawAccommodation[],
   rawRoomConfigs: RawRoomConfiguration[],
-  allParticipantProfiles: Map<string, ParticipantProfile>, // New parameter
+  allParticipantProfiles: Map<string, ParticipantProfile>,
 ): ItineraryEvent[] {
   const transformedAccommodations: ItineraryEvent[] = []
 
@@ -249,7 +285,7 @@ export function processAccommodationData(
     const baseEvent: ItineraryEvent = {
       id: acc.id,
       event_type: "accommodation",
-      description: acc.accomodation_name || acc.hotel_name || "Accommodation",
+      description: acc.accommodation_name || acc.hotel_name || "Accommodation",
       booking_reference: acc.booking_reference || undefined,
       participants: parseParticipants(acc.participants ?? null, allParticipantProfiles),
       location: acc.hotel_city || undefined,
@@ -272,6 +308,13 @@ export function processAccommodationData(
       transport_tickets: [],
       additional_transfer_info: undefined,
       hotel_photo_url: acc.hotel_photo_url || undefined,
+      accommodation_id: acc.id,
+      additional_features_gym: acc.additional_features_gym || undefined,
+      additional_features_cafe: acc.additional_features_cafe || undefined,
+      additional_features_restaurant: acc.additional_features_restaurant || undefined,
+      additional_features_shopping: acc.additional_features_shopping || undefined,
+      additional_features_food_savoury: acc.additional_features_food_savoury || undefined,
+      additional_features_food_sweet: acc.additional_features_food_sweet || undefined,
       // @ts-ignore: allow custom fields for timeline display
       date_check_in_local: acc.date_check_in_local || undefined,
       // @ts-ignore: allow custom fields for timeline display
@@ -279,10 +322,10 @@ export function processAccommodationData(
     }
 
     // Find all room configurations that belong to this specific accommodation entry
-    // Linking ONLY using accomodation_name (trimmed and lowercased)
+    // Linking ONLY using accommodation_name (trimmed and lowercased)
     const matchingRoomConfigs = rawRoomConfigs.filter((rc) => {
-      const rcAccName = rc.accomodation_name?.toLowerCase().trim() || undefined;
-      const accAccName = acc.accomodation_name?.toLowerCase().trim() || undefined;
+      const rcAccName = rc.accommodation_name?.toLowerCase().trim() || undefined;
+      const accAccName = acc.accommodation_name?.toLowerCase().trim() || undefined;
       const isNameMatch = rcAccName && accAccName && rcAccName === accAccName;
       return isNameMatch;
     });

@@ -6,8 +6,9 @@ import { createBrowserClient } from "@/lib/supabase-client"
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-export function UserAuthButton() {
+export function UserAuthButton({ className = "" }: { className?: string }) {
   const [user, setUser] = useState<any>(null) // Store user session data
   const [loading, setLoading] = useState(true)
   const [supabase, setSupabase] = useState<any>(null)
@@ -61,7 +62,7 @@ export function UserAuthButton() {
         size="sm"
         onClick={handleSignOut}
         disabled={loading}
-        className="text-purple-700 hover:bg-purple-200/40 text-lg font-bold flex items-center"
+        className={cn("text-purple-700 hover:bg-purple-200/40 text-lg font-bold flex items-center", className)}
       >
         <LogOut className="h-6 w-6 mr-2 text-purple-700" />
         <span className="text-purple-700 text-lg font-bold">Sign Out</span>

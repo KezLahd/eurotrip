@@ -20,7 +20,10 @@ import {
   FootprintsIcon as Walk,
   CarTaxiFrontIcon as Taxi,
   Clock,
-  Umbrella,
+  Dumbbell,
+  Utensils,
+  Coffee,
+  ShoppingBag,
 } from "lucide-react"
 import { format, differenceInDays, min, max } from "date-fns" // Import date-fns functions
 import { cn } from "@/lib/utils"
@@ -34,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -41,6 +45,16 @@ import { useState, useEffect } from "react" // Import useState and useEffect
 import { EditActivityForm } from "@/components/edit-activity-form"
 import { createBrowserClient } from "@/lib/supabase-client"
 import { FootprintsIcon } from "lucide-react"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import { useSwipeable, SwipeableHandlers } from "react-swipeable"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface ParticipantBadgeProps {
   name: string // This is the key used to look up the profile (e.g., "LJ")
@@ -50,6 +64,7 @@ interface ParticipantBadgeProps {
   allEvents?: ItineraryEvent[] // New prop for all events
   size?: "small" | "large" // New size prop
   showTripDuration?: boolean // New prop to control trip duration display
+  className?: string // Allow custom className for margin/padding
 }
 
 // Function to generate a consistent color based on the name
@@ -82,6 +97,7 @@ export function ParticipantBadge({
   allEvents,
   size = "small", // Default to small for event cards
   showTripDuration = false, // Default to false
+  className = "", // Default empty
 }: ParticipantBadgeProps) {
   const participantProfile = allParticipantProfiles.get(name)
   const displayInitials = participantProfile?.initials || name.toUpperCase().substring(0, 2)
@@ -94,7 +110,7 @@ export function ParticipantBadge({
 
   // Define size classes
   const badgeSizeClasses = {
-    small: "h-12 w-12 text-base", // Changed to h-12 w-12 for event cards
+    small: "h-10 w-10 text-base p-0.5", // Reduced size and padding for header
     large: "h-24 w-24 text-2xl", // Larger for participant grid
   }
 
@@ -205,6 +221,7 @@ export function ParticipantBadge({
             "border-2 border-current font-bold cursor-pointer hover:scale-105 transition-transform duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue",
             badgeSizeClasses[size], // Apply size classes here
             colorClass,
+            className // Allow custom className
           )}
         >
           {photoUrl ? (
@@ -247,7 +264,6 @@ export function ParticipantBadge({
               ) : (
                 tripDuration && (
                   <div className="flex items-center gap-2 text-sm text-gray-700 mt-2">
-                    <Umbrella className="h-4 w-4 text-accent-pink" />
                     <span>Holiday Length: {tripDuration}</span>
                   </div>
                 )
@@ -395,12 +411,232 @@ export function FlightCard({ event, allParticipantProfiles }: EventCardProps) {
   )
 }
 
+// Add new type for gym data
+type GymData = {
+  id: number;
+  accommodation_id: number;
+  gym_name: string;
+  gym_location: string;
+  gym_distance: string;
+  gym_rating: string;
+  gym_photo_url: string;
+  gym_times: string;
+  gym_cost: string;
+}
+
+// Add new type for restaurant data
+type RestaurantData = {
+  id: number;
+  accommodation_id: number;
+  restaurant_name: string;
+  restaurant_location: string | null;
+  restaurant_distance: string | null;
+  restaurant_photo_url: string | null;
+  restaurant_menu_url: string | null;
+}
+
+// Add new type for cafe data
+type CafeData = {
+  id: number;
+  accommodation_id: number;
+  cafe_name: string;
+  cafe_location: string | null;
+  cafe_distance: string | null;
+  cafe_photo_url: string | null;
+  cafe_menu_url: string | null;
+}
+
+// Add new type for shopping data
+type ShoppingData = {
+  id: number;
+  accommodation_id: number;
+  shopping_name: string;
+  shopping_location: string;
+  shopping_distance: string;
+  shopping_rating: string;
+  shopping_photo_url: string;
+  shopping_times: string;
+  shopping_cost: string;
+}
+
+// Add new types for food data
+type SavouryFoodData = {
+  id: number;
+  accommodation_id: number;
+  food_name: string;
+  vendor_name: string | null;
+  vendor_location: string | null;
+  vendor_distance: string | null;
+  food_photo_url: string | null;
+  menu_url: string | null;
+}
+
+type SweetFoodData = {
+  id: number;
+  accommodation_id: number;
+  food_name: string;
+  vendor_name: string | null;
+  vendor_location: string | null;
+  vendor_distance: string | null;
+  food_photo_url: string | null;
+  menu_url: string | null;
+}
+
 export function AccommodationCard({ event, allParticipantProfiles }: EventCardProps) {
+  console.log('AccommodationCard event:', event); // Debug log for cafe icon issue
   const hasMultipleRooms = event.rooms && event.rooms.length > 1
   const hasSingleRoom = event.rooms && event.rooms.length === 1
-  const defaultTabValue = hasMultipleRooms ? `room-${event.rooms![0].id}` : "single-room"
+  const [selectedRoomId, setSelectedRoomId] = useState(
+    hasMultipleRooms ? event.rooms![0].id.toString() : hasSingleRoom ? event.rooms![0].id.toString() : ""
+  )
 
-  const singleRoom = hasSingleRoom ? event.rooms![0] : null
+  // Use prop directly for gym and restaurant
+  const hasGym = !!event.additional_features_gym
+  const hasRestaurant = !!event.additional_features_restaurant
+  const hasCafe = !!event.additional_features_cafe
+  const hasShopping = !!event.additional_features_shopping
+  const hasSavoury = !!event.additional_features_food_savoury
+  const hasSweet = !!event.additional_features_food_sweet
+  const [gymData, setGymData] = useState<GymData[]>([])
+  const [restaurantData, setRestaurantData] = useState<RestaurantData[]>([])
+  const [cafeData, setCafeData] = useState<CafeData[]>([])
+  const [shoppingData, setShoppingData] = useState<ShoppingData[]>([])
+  const [savouryData, setSavouryData] = useState<SavouryFoodData[]>([])
+  const [sweetData, setSweetData] = useState<SweetFoodData[]>([])
+  const [showGymDialog, setShowGymDialog] = useState(false)
+  const [showRestaurantDialog, setShowRestaurantDialog] = useState(false)
+  const [showCafeDialog, setShowCafeDialog] = useState(false)
+  const [showShoppingDialog, setShowShoppingDialog] = useState(false)
+  const supabase = createBrowserClient()
+  const [currentGymSlideIndex, setCurrentGymSlideIndex] = useState(0)
+  const [currentRestaurantSlideIndex, setCurrentRestaurantSlideIndex] = useState(0)
+  const [currentCafeSlideIndex, setCurrentCafeSlideIndex] = useState(0)
+  const [currentShoppingSlideIndex, setCurrentShoppingSlideIndex] = useState(0)
+  const [currentSavourySlideIndex, setCurrentSavourySlideIndex] = useState(0)
+  const [currentSweetSlideIndex, setCurrentSweetSlideIndex] = useState(0)
+  const [selectedFoodType, setSelectedFoodType] = useState<'restaurant' | 'savoury' | 'sweet'>('restaurant')
+
+  const gymSwipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentGymSlideIndex((prev) => (prev + 1) % (gymData.length || 1)),
+    onSwipedRight: () => setCurrentGymSlideIndex((prev) => (prev - 1 + (gymData.length || 1)) % (gymData.length || 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  })
+
+  const restaurantSwipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentRestaurantSlideIndex((prev) => (prev + 1) % (restaurantData.length || 1)),
+    onSwipedRight: () => setCurrentRestaurantSlideIndex((prev) => (prev - 1 + (restaurantData.length || 1)) % (restaurantData.length || 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  })
+
+  const cafeSwipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentCafeSlideIndex((prev) => (prev + 1) % (cafeData.length || 1)),
+    onSwipedRight: () => setCurrentCafeSlideIndex((prev) => (prev - 1 + (cafeData.length || 1)) % (cafeData.length || 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  })
+
+  const shoppingSwipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentShoppingSlideIndex((prev) => (prev + 1) % (shoppingData.length || 1)),
+    onSwipedRight: () => setCurrentShoppingSlideIndex((prev) => (prev - 1 + (shoppingData.length || 1)) % (shoppingData.length || 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  })
+
+  const savourySwipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentSavourySlideIndex((prev) => (prev + 1) % (savouryData.length || 1)),
+    onSwipedRight: () => setCurrentSavourySlideIndex((prev) => (prev - 1 + (savouryData.length || 1)) % (savouryData.length || 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  })
+
+  const sweetSwipeHandlers = useSwipeable({
+    onSwipedLeft: () => setCurrentSweetSlideIndex((prev) => (prev + 1) % (sweetData.length || 1)),
+    onSwipedRight: () => setCurrentSweetSlideIndex((prev) => (prev - 1 + (sweetData.length || 1)) % (sweetData.length || 1)),
+    preventScrollOnSwipe: true,
+    trackMouse: true,
+  })
+
+  // Fetch gym, restaurant, cafe, and shopping data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (hasGym && event.accommodation_id) {
+          const { data: gymData, error: gymError } = await supabase
+            .from("accommodation_gym")
+            .select("*")
+            .eq("accommodation_id", event.accommodation_id)
+          if (gymError) {
+            console.error("Error fetching gym data:", gymError)
+          } else {
+            setGymData(gymData || [])
+          }
+        }
+        if (hasRestaurant && event.accommodation_id) {
+          const { data: restaurantData, error: restaurantError } = await supabase
+            .from("accommodation_restaurants")
+            .select("*")
+            .eq("accommodation_id", event.accommodation_id)
+          if (restaurantError) {
+            console.error("Error fetching restaurant data:", restaurantError)
+          } else {
+            setRestaurantData(restaurantData || [])
+          }
+        }
+        if (hasCafe && event.accommodation_id) {
+          const { data: cafeData, error: cafeError } = await supabase
+            .from("accommodation_cafe")
+            .select("*")
+            .eq("accommodation_id", event.accommodation_id)
+          if (cafeError) {
+            console.error("Error fetching cafe data:", cafeError)
+          } else {
+            setCafeData(cafeData || [])
+          }
+        }
+        if (hasShopping && event.accommodation_id) {
+          const { data: shoppingData, error: shoppingError } = await supabase
+            .from("accommodation_shopping")
+            .select("*")
+            .eq("accommodation_id", event.accommodation_id)
+          if (shoppingError) {
+            console.error("Error fetching shopping data:", shoppingError)
+          } else {
+            setShoppingData(shoppingData || [])
+          }
+        }
+        if (hasSavoury && event.accommodation_id) {
+          const { data: savouryData, error: savouryError } = await supabase
+            .from("accommodation_food_savoury")
+            .select("*")
+            .eq("accommodation_id", event.accommodation_id)
+          if (savouryError) {
+            console.error("Error fetching savoury food data:", savouryError)
+          } else {
+            setSavouryData(savouryData || [])
+          }
+        }
+        if (hasSweet && event.accommodation_id) {
+          const { data: sweetData, error: sweetError } = await supabase
+            .from("accommodation_food_sweet")
+            .select("*")
+            .eq("accommodation_id", event.accommodation_id)
+          if (sweetError) {
+            console.error("Error fetching sweet food data:", sweetError)
+          } else {
+            setSweetData(sweetData || [])
+          }
+        }
+      } catch (error) {
+        console.error("Error in fetchData:", error)
+      }
+    }
+    fetchData()
+  }, [hasGym, hasRestaurant, hasCafe, hasShopping, hasSavoury, hasSweet, event.accommodation_id, supabase])
+
+  // Show the fork and knife icon if any food feature is true
+  const hasAnyFood = !!event.additional_features_restaurant || !!event.additional_features_food_savoury || !!event.additional_features_food_sweet
 
   return (
     <Card className="w-full rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 animate-fade-in">
@@ -412,44 +648,615 @@ export function AccommodationCard({ event, allParticipantProfiles }: EventCardPr
           className="rounded-t-xl object-cover"
           crossOrigin="anonymous"
         />
+        {/* Floating Info Button */}
+        <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', zIndex: 10 }}>
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-white/30 hover:bg-white/50 transition-colors shadow-lg"
+                aria-label="More Info"
+              >
+                <Info className="h-5 w-5" style={{ color: '#38a3f5' }} />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] rounded-lg bg-white p-6 shadow-lg">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-bold text-primary-blue">Booking Details</DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Information for your accommodation booking.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-dark-teal" />
+                  <span className="font-semibold">Booking Reference:</span> {event.booking_reference || "N/A"}
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-dark-teal" />
+                  <span className="font-semibold">Location:</span> {event.location || "N/A"}
+                </div>
+                {event.notes && (
+                  <div className="flex items-start gap-2">
+                    <Info className="h-5 w-5 text-dark-teal flex-shrink-0 mt-0.5" />
+                    <span className="font-semibold">Notes:</span> <p className="text-sm">{event.notes}</p>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       <CardHeader className="bg-primary-blue text-white p-4 flex flex-row items-center justify-between">
         <div className="flex items-center gap-3">
           <Hotel className="h-6 w-6" />
           <h3 className="text-xl font-bold">{event.description || "Accommodation"}</h3>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-              <Info className="h-5 w-5" />
-              <span className="sr-only">More Info</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] rounded-lg bg-white p-6 shadow-lg">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold text-primary-blue">Booking Details</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Information for your accommodation booking.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="flex items-center gap-2">
-                <Tag className="h-5 w-5 text-dark-teal" />
-                <span className="font-semibold">Booking Reference:</span> {event.booking_reference || "N/A"}
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-dark-teal" />
-                <span className="font-semibold">Location:</span> {event.location || "N/A"}
-              </div>
-              {event.notes && (
-                <div className="flex items-start gap-2">
-                  <Info className="h-5 w-5 text-dark-teal flex-shrink-0 mt-0.5" />
-                  <span className="font-semibold">Notes:</span> <p className="text-sm">{event.notes}</p>
+        <div className="flex gap-1">
+          {hasAnyFood && (
+            <Dialog open={showRestaurantDialog} onOpenChange={(open) => {
+              setShowRestaurantDialog(open);
+              if (!open) {
+                setCurrentRestaurantSlideIndex(0);
+                setCurrentSavourySlideIndex(0);
+                setCurrentSweetSlideIndex(0);
+                // Default to first available food type
+                if (event.additional_features_restaurant) setSelectedFoodType('restaurant');
+                else if (event.additional_features_food_savoury) setSelectedFoodType('savoury');
+                else if (event.additional_features_food_sweet) setSelectedFoodType('sweet');
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                  <Utensils className="h-7 w-7" />
+                  <span className="sr-only">Food Details</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent hideDefaultClose className="max-w-[425px] w-full mx-auto p-0 rounded-lg bg-white shadow-lg overflow-hidden">
+                <VisuallyHidden asChild>
+                  <DialogTitle>Food Options</DialogTitle>
+                </VisuallyHidden>
+                <DialogClose asChild>
+                  <button
+                    className="absolute right-4 top-4 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 transition-colors"
+                    aria-label="Close dialog"
+                    type="button"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-6 w-6 text-pink-500"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </DialogClose>
+                <div className="relative">
+                  <div className="absolute top-0 left-0 right-0 z-10 flex justify-center px-4 pt-4">
+                    <div className="w-1/2 bg-white/40 backdrop-blur-sm rounded-lg">
+                      <Select
+                        value={selectedFoodType}
+                        onValueChange={(value: 'restaurant' | 'savoury' | 'sweet') => {
+                          setSelectedFoodType(value);
+                          if (value === 'restaurant') setCurrentRestaurantSlideIndex(0);
+                          if (value === 'savoury') setCurrentSavourySlideIndex(0);
+                          if (value === 'sweet') setCurrentSweetSlideIndex(0);
+                        }}
+                      >
+                        <SelectTrigger className="w-full border-none bg-transparent text-accent-pink font-semibold">
+                          <SelectValue placeholder="Select food type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {event.additional_features_restaurant && <SelectItem value="restaurant" className="text-accent-pink">Restaurants</SelectItem>}
+                          {event.additional_features_food_savoury && <SelectItem value="savoury" className="text-accent-pink">Hyped Foods (Savoury)</SelectItem>}
+                          {event.additional_features_food_sweet && <SelectItem value="sweet" className="text-accent-pink">Hyped Foods (Sweet)</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {selectedFoodType === 'restaurant' && hasRestaurant && (
+                    <div {...restaurantSwipeHandlers} className="w-full relative">
+                      <div className="relative w-full h-[220px] bg-gray-100">
+                        {restaurantData[currentRestaurantSlideIndex]?.restaurant_photo_url ? (
+                          <Image
+                            src={restaurantData[currentRestaurantSlideIndex].restaurant_photo_url}
+                            alt={restaurantData[currentRestaurantSlideIndex].restaurant_name || "Restaurant photo"}
+                            fill
+                            className="object-cover rounded-t-lg"
+                            crossOrigin="anonymous"
+                          />
+                        ) : (
+                          <Image
+                            src="/placeholder.svg"
+                            alt="No restaurant image available"
+                            fill
+                            className="object-contain object-center opacity-60 rounded-t-lg"
+                          />
+                        )}
+                        {restaurantData.length > 1 && (
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                            {restaurantData.map((_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentRestaurantSlideIndex(index)}
+                                className={`w-2 h-2 rounded-full transition-colors ${
+                                  index === currentRestaurantSlideIndex ? 'bg-white' : 'bg-white/50'
+                                }`}
+                                aria-label={`Go to slide ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-4 py-3 space-y-2">
+                        <h3 className="text-xl font-bold text-primary-blue">{restaurantData[currentRestaurantSlideIndex]?.restaurant_name}</h3>
+                        {restaurantData[currentRestaurantSlideIndex]?.restaurant_location && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-accent-pink" />
+                            <span>{restaurantData[currentRestaurantSlideIndex].restaurant_location}</span>
+                          </div>
+                        )}
+                        {restaurantData[currentRestaurantSlideIndex]?.restaurant_distance && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold">Distance:</span>
+                            <span>{restaurantData[currentRestaurantSlideIndex].restaurant_distance}</span>
+                          </div>
+                        )}
+                        {restaurantData[currentRestaurantSlideIndex]?.restaurant_menu_url && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <a
+                              href={restaurantData[currentRestaurantSlideIndex].restaurant_menu_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-pink hover:underline"
+                            >
+                              View Menu
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFoodType === 'savoury' && hasSavoury && (
+                    <div {...savourySwipeHandlers} className="w-full relative">
+                      <div className="relative w-full h-[220px] bg-gray-100">
+                        {savouryData[currentSavourySlideIndex]?.food_photo_url ? (
+                          <Image
+                            src={savouryData[currentSavourySlideIndex].food_photo_url}
+                            alt={savouryData[currentSavourySlideIndex].food_name || "Savoury food photo"}
+                            fill
+                            className="object-cover rounded-t-lg"
+                            crossOrigin="anonymous"
+                          />
+                        ) : (
+                          <Image
+                            src="/placeholder.svg"
+                            alt="No food image available"
+                            fill
+                            className="object-contain object-center opacity-60 rounded-t-lg"
+                          />
+                        )}
+                        {savouryData.length > 1 && (
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                            {savouryData.map((_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentSavourySlideIndex(index)}
+                                className={`w-2 h-2 rounded-full transition-colors ${
+                                  index === currentSavourySlideIndex ? 'bg-white' : 'bg-white/50'
+                                }`}
+                                aria-label={`Go to slide ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-4 py-3 space-y-2">
+                        <h3 className="text-xl font-bold text-primary-blue">{savouryData[currentSavourySlideIndex]?.food_name}</h3>
+                        {savouryData[currentSavourySlideIndex]?.vendor_name && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold">Vendor:</span>
+                            <span>{savouryData[currentSavourySlideIndex].vendor_name}</span>
+                          </div>
+                        )}
+                        {savouryData[currentSavourySlideIndex]?.vendor_location && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-accent-pink" />
+                            <span>{savouryData[currentSavourySlideIndex].vendor_location}</span>
+                          </div>
+                        )}
+                        {savouryData[currentSavourySlideIndex]?.vendor_distance && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold">Distance:</span>
+                            <span>{savouryData[currentSavourySlideIndex].vendor_distance}</span>
+                          </div>
+                        )}
+                        {savouryData[currentSavourySlideIndex]?.menu_url && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <a
+                              href={savouryData[currentSavourySlideIndex].menu_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-pink hover:underline"
+                            >
+                              View Menu
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFoodType === 'sweet' && hasSweet && (
+                    <div {...sweetSwipeHandlers} className="w-full relative">
+                      <div className="relative w-full h-[220px] bg-gray-100">
+                        {sweetData[currentSweetSlideIndex]?.food_photo_url ? (
+                          <Image
+                            src={sweetData[currentSweetSlideIndex].food_photo_url}
+                            alt={sweetData[currentSweetSlideIndex].food_name || "Sweet food photo"}
+                            fill
+                            className="object-cover rounded-t-lg"
+                            crossOrigin="anonymous"
+                          />
+                        ) : (
+                          <Image
+                            src="/placeholder.svg"
+                            alt="No food image available"
+                            fill
+                            className="object-contain object-center opacity-60 rounded-t-lg"
+                          />
+                        )}
+                        {sweetData.length > 1 && (
+                          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                            {sweetData.map((_, index) => (
+                              <button
+                                key={index}
+                                onClick={() => setCurrentSweetSlideIndex(index)}
+                                className={`w-2 h-2 rounded-full transition-colors ${
+                                  index === currentSweetSlideIndex ? 'bg-white' : 'bg-white/50'
+                                }`}
+                                aria-label={`Go to slide ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="px-4 py-3 space-y-2">
+                        <h3 className="text-xl font-bold text-primary-blue">{sweetData[currentSweetSlideIndex]?.food_name}</h3>
+                        {sweetData[currentSweetSlideIndex]?.vendor_name && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold">Vendor:</span>
+                            <span>{sweetData[currentSweetSlideIndex].vendor_name}</span>
+                          </div>
+                        )}
+                        {sweetData[currentSweetSlideIndex]?.vendor_location && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-accent-pink" />
+                            <span>{sweetData[currentSweetSlideIndex].vendor_location}</span>
+                          </div>
+                        )}
+                        {sweetData[currentSweetSlideIndex]?.vendor_distance && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold">Distance:</span>
+                            <span>{sweetData[currentSweetSlideIndex].vendor_distance}</span>
+                          </div>
+                        )}
+                        {sweetData[currentSweetSlideIndex]?.menu_url && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <a
+                              href={sweetData[currentSweetSlideIndex].menu_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-accent-pink hover:underline"
+                            >
+                              View Menu
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
+          {hasCafe && (
+            <Dialog open={showCafeDialog} onOpenChange={(open) => {
+              setShowCafeDialog(open);
+              if (!open) setCurrentCafeSlideIndex(0);
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                  <Coffee className="h-7 w-7" />
+                  <span className="sr-only">Cafe Details</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent hideDefaultClose className="max-w-[425px] w-full mx-auto p-0 rounded-lg bg-white shadow-lg overflow-hidden">
+                <VisuallyHidden asChild>
+                  <DialogTitle>Cafe Facilities</DialogTitle>
+                </VisuallyHidden>
+                <DialogClose asChild>
+                  <button
+                    className="absolute right-4 top-4 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 transition-colors"
+                    aria-label="Close dialog"
+                    type="button"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-6 w-6 text-pink-500"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </DialogClose>
+                <div {...cafeSwipeHandlers} className="w-full relative">
+                  <div className="relative w-full h-[220px] bg-gray-100">
+                    {cafeData[currentCafeSlideIndex]?.cafe_photo_url ? (
+                      <Image
+                        src={cafeData[currentCafeSlideIndex].cafe_photo_url}
+                        alt={cafeData[currentCafeSlideIndex].cafe_name || "Cafe photo"}
+                        fill
+                        className="object-cover rounded-t-lg"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <Image
+                        src="/placeholder.svg"
+                        alt="No cafe image available"
+                        fill
+                        className="object-contain object-center opacity-60 rounded-t-lg"
+                      />
+                    )}
+                    {cafeData.length > 1 && (
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                        {cafeData.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentCafeSlideIndex(index)}
+                            className={`w-2 h-2 rounded-full transition-colors ${
+                              index === currentCafeSlideIndex ? 'bg-white' : 'bg-white/50'
+                            }`}
+                            aria-label={`Go to slide ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <h3 className="text-xl font-bold text-primary-blue">{cafeData[currentCafeSlideIndex]?.cafe_name}</h3>
+                    {cafeData[currentCafeSlideIndex]?.cafe_location && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-accent-pink" />
+                        <span>{cafeData[currentCafeSlideIndex].cafe_location}</span>
+                      </div>
+                    )}
+                    {cafeData[currentCafeSlideIndex]?.cafe_distance && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold">Distance:</span>
+                        <span>{cafeData[currentCafeSlideIndex].cafe_distance}</span>
+                      </div>
+                    )}
+                    {cafeData[currentCafeSlideIndex]?.cafe_menu_url && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <a
+                          href={cafeData[currentCafeSlideIndex].cafe_menu_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent-pink hover:underline"
+                        >
+                          View Menu
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          {hasGym && (
+            <Dialog open={showGymDialog} onOpenChange={(open) => {
+              setShowGymDialog(open);
+              if (!open) setCurrentGymSlideIndex(0);
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                  <Dumbbell className="h-7 w-7" />
+                  <span className="sr-only">Gym Details</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent hideDefaultClose className="max-w-[425px] w-full mx-auto p-0 rounded-lg bg-white shadow-lg overflow-hidden">
+                <VisuallyHidden asChild>
+                  <DialogTitle>Gym Facilities</DialogTitle>
+                </VisuallyHidden>
+                <DialogClose asChild>
+                  <button
+                    className="absolute right-4 top-4 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 transition-colors"
+                    aria-label="Close dialog"
+                    type="button"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-6 w-6 text-pink-500"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </DialogClose>
+                <div {...gymSwipeHandlers} className="w-full relative">
+                  <div className="relative w-full h-[220px] bg-gray-100">
+                    {gymData[currentGymSlideIndex]?.gym_photo_url ? (
+                      <Image
+                        src={gymData[currentGymSlideIndex].gym_photo_url}
+                        alt={gymData[currentGymSlideIndex].gym_name || "Gym photo"}
+                        fill
+                        className="object-cover rounded-t-lg"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <Image
+                        src="/placeholder.svg"
+                        alt="No gym image available"
+                        fill
+                        className="object-contain object-center opacity-60 rounded-t-lg"
+                      />
+                    )}
+                    {gymData.length > 1 && (
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                        {gymData.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentGymSlideIndex(index)}
+                            className={`w-2 h-2 rounded-full transition-colors ${
+                              index === currentGymSlideIndex ? 'bg-white' : 'bg-white/50'
+                            }`}
+                            aria-label={`Go to slide ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <h3 className="text-xl font-bold text-primary-blue">{gymData[currentGymSlideIndex]?.gym_name}</h3>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-accent-pink" />
+                      <span>{gymData[currentGymSlideIndex]?.gym_location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold">Distance:</span>
+                      <span>{gymData[currentGymSlideIndex]?.gym_distance}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold">Rating:</span>
+                      <span>{gymData[currentGymSlideIndex]?.gym_rating}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-4 w-4 text-accent-pink" />
+                      <span>{gymData[currentGymSlideIndex]?.gym_times}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold">Cost:</span>
+                      <span>{gymData[currentGymSlideIndex]?.gym_cost}</span>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+          {hasShopping && (
+            <Dialog open={showShoppingDialog} onOpenChange={(open) => {
+              setShowShoppingDialog(open);
+              if (!open) setCurrentShoppingSlideIndex(0);
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+                  <ShoppingBag className="h-7 w-7" />
+                  <span className="sr-only">Shopping Details</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent hideDefaultClose className="max-w-[425px] w-full mx-auto p-0 rounded-lg bg-white shadow-lg overflow-hidden">
+                <VisuallyHidden asChild>
+                  <DialogTitle>Shopping Facilities</DialogTitle>
+                </VisuallyHidden>
+                <DialogClose asChild>
+                  <button
+                    className="absolute right-4 top-4 z-20 flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 transition-colors"
+                    aria-label="Close dialog"
+                    type="button"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-6 w-6 text-pink-500"
+                    >
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </DialogClose>
+                <div {...shoppingSwipeHandlers} className="w-full relative">
+                  <div className="relative w-full h-[220px] bg-gray-100">
+                    {shoppingData[currentShoppingSlideIndex]?.shopping_photo_url ? (
+                      <Image
+                        src={shoppingData[currentShoppingSlideIndex].shopping_photo_url}
+                        alt={shoppingData[currentShoppingSlideIndex].shopping_name || "Shopping photo"}
+                        fill
+                        className="object-cover rounded-t-lg"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <Image
+                        src="/placeholder.svg"
+                        alt="No shopping image available"
+                        fill
+                        className="object-contain object-center opacity-60 rounded-t-lg"
+                      />
+                    )}
+                    {shoppingData.length > 1 && (
+                      <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 z-10">
+                        {shoppingData.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentShoppingSlideIndex(index)}
+                            className={`w-2 h-2 rounded-full transition-colors ${
+                              index === currentShoppingSlideIndex ? 'bg-white' : 'bg-white/50'
+                            }`}
+                            aria-label={`Go to slide ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="px-4 py-3 space-y-2">
+                    <h3 className="text-xl font-bold text-primary-blue">{shoppingData[currentShoppingSlideIndex]?.shopping_name}</h3>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-accent-pink" />
+                      <span>{shoppingData[currentShoppingSlideIndex]?.shopping_location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold">Distance:</span>
+                      <span>{shoppingData[currentShoppingSlideIndex]?.shopping_distance}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-4 w-4 text-accent-pink" />
+                      <span>{shoppingData[currentShoppingSlideIndex]?.shopping_times}</span>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-4 grid gap-3">
         <div className="flex items-center gap-2 text-sm">
@@ -465,33 +1272,34 @@ export function AccommodationCard({ event, allParticipantProfiles }: EventCardPr
         </div>
         {/* Removed time display from here */}
         {hasMultipleRooms ? (
-          <Tabs defaultValue={defaultTabValue} className="w-full mt-2">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 h-auto p-1 bg-light-blue rounded-xl gap-1">
-              {event.rooms!.map((room) => (
-                <TabsTrigger
-                  key={room.id}
-                  value={`room-${room.id}`}
-                  className="rounded-full data-[state=active]:bg-primary-blue data-[state=active]:text-white text-dark-teal font-semibold text-sm py-1 transition-all duration-300 hover:bg-medium-blue hover:text-white"
-                >
-                  {room.room_type || `Room ${room.id}`}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <div className="w-full mt-2">
+            <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+              <SelectTrigger className="w-full rounded-full bg-light-blue text-dark-teal font-semibold text-base py-2 px-4 shadow-sm">
+                <SelectValue placeholder="Select Room" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl bg-white shadow-lg">
+                {event.rooms!.map((room) => (
+                  <SelectItem key={room.id} value={room.id.toString()}>{room.room_type || `Room ${room.id}`}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {event.rooms!.map((room) => (
-              <TabsContent key={room.id} value={`room-${room.id}`} className="mt-4">
-                <RoomDetailDisplay room={room} allParticipantProfiles={allParticipantProfiles} />
-              </TabsContent>
+              selectedRoomId === room.id.toString() && (
+                <div key={room.id} className="mt-4">
+                  <RoomDetailDisplay room={room} allParticipantProfiles={allParticipantProfiles} />
+                </div>
+              )
             ))}
-          </Tabs>
-        ) : singleRoom ? (
+          </div>
+        ) : hasSingleRoom ? (
           <div className="mt-2">
             <Button
               variant="outline"
               className="rounded-full px-4 py-2 text-base bg-dark-teal text-white hover:bg-dark-teal/90"
             >
-              {singleRoom.room_type || "Room Details"}
+              {event.rooms![0].room_type || "Room Details"}
             </Button>
-            <RoomDetailDisplay room={singleRoom} allParticipantProfiles={allParticipantProfiles} />
+            <RoomDetailDisplay room={event.rooms![0]} allParticipantProfiles={allParticipantProfiles} />
           </div>
         ) : (
           <div className="mt-2 text-muted-foreground text-sm">
@@ -532,7 +1340,7 @@ function RoomDetailDisplay({ room, allParticipantProfiles }: RoomDetailDisplayPr
       )}
       {room.participants && room.participants.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <Users className="h-4 w-4 text-dark-teal" /> {/* Kept h-4 w-4 for icon */}
+          <Users className="h-4 w-4 text-dark-teal" />
           <span className="font-semibold text-sm">Room Participants:</span>
           <div className="flex flex-wrap gap-1">
             {room.participants.map((p, idx) => (
@@ -743,6 +1551,12 @@ export function TransferActivityCard({ event, allParticipantProfiles }: EventCar
 }
 
 export function CarHireCard({ event, allParticipantProfiles }: EventCardProps) {
+  const hasMultipleCars = event.cars && event.cars.length > 1;
+  const hasSingleCar = event.cars && event.cars.length === 1;
+  const [selectedCarId, setSelectedCarId] = useState(
+    hasMultipleCars ? event.cars![0].id.toString() : hasSingleCar ? event.cars![0].id.toString() : ""
+  );
+
   return (
     <Card className="relative overflow-hidden">
       <CardHeader className="p-4 pb-2">
@@ -754,15 +1568,108 @@ export function CarHireCard({ event, allParticipantProfiles }: EventCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-4 grid gap-3">
-        {event.cars?.map((car: CarDetail) => (
-          <div key={car.driver} className="flex items-center space-x-2">
-            <Car className="h-4 w-4 text-accent-pink" />
-            <span className="text-sm">Driver: {car.driver}</span>
+        <div className="flex items-center gap-2 text-sm">
+          <MapPin className="h-4 w-4 text-dark-teal" />
+          <span className="font-semibold">Location:</span> {event.location || "N/A"}
+        </div>
+        {/* Removed time display from here */}
+        {hasMultipleCars ? (
+          <div className="w-full mt-2">
+            <Select value={selectedCarId} onValueChange={setSelectedCarId}>
+              <SelectTrigger className="w-full rounded-full bg-light-blue text-dark-teal font-semibold text-base py-2 px-4 shadow-sm">
+                <SelectValue placeholder="Select Car" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl bg-white shadow-lg">
+                {event.cars!.map((car) => (
+                  <SelectItem key={car.id} value={car.id.toString()}>{car.car_name || `Car ${car.id}`}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {event.cars!.map((car) => (
+              selectedCarId === car.id.toString() && (
+                <div key={car.id} className="mt-4">
+                  <CarDetailDisplay car={car} allParticipantProfiles={allParticipantProfiles} event={event} />
+                </div>
+              )
+            ))}
           </div>
-        ))}
+        ) : hasSingleCar ? (
+          <div className="mt-2">
+            <Button
+              variant="outline"
+              className="rounded-full px-4 py-2 text-base bg-dark-teal text-white hover:bg-dark-teal/90"
+            >
+              {event.cars![0].car_name || "Car Details"}
+            </Button>
+            <CarDetailDisplay car={event.cars![0]} allParticipantProfiles={allParticipantProfiles} event={event} />
+          </div>
+        ) : (
+          <div className="mt-2 text-muted-foreground text-sm">
+            <p>No specific car details available.</p>
+          </div>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+interface CarDetailDisplayProps {
+  car: CarDetail
+  allParticipantProfiles: Map<string, ParticipantProfile>
+  event: ItineraryEvent
+}
+
+function CarDetailDisplay({ car, allParticipantProfiles, event }: CarDetailDisplayProps) {
+  return (
+    <div className="grid gap-2">
+      {car.driver && (
+        <div className="flex items-center gap-2 text-sm">
+          <Users className="h-4 w-4 text-dark-teal" />
+          <span className="font-semibold">Driver:</span> {car.driver}
+          <ParticipantBadge 
+            name={car.driver} 
+            event={event} 
+            allParticipantProfiles={allParticipantProfiles} 
+          />
+        </div>
+      )}
+      {car.booking_reference && (
+        <div className="flex items-center gap-2 text-sm">
+          <Tag className="h-4 w-4 text-dark-teal" />
+          <span className="font-semibold">Booking Reference:</span> {car.booking_reference}
+        </div>
+      )}
+      {car.pickup_location && (
+        <div className="flex items-center gap-2 text-sm">
+          <MapPin className="h-4 w-4 text-dark-teal" />
+          <span className="font-semibold">Pickup:</span> {car.pickup_location}
+        </div>
+      )}
+      {car.dropoff_location && (
+        <div className="flex items-center gap-2 text-sm">
+          <MapPin className="h-4 w-4 text-dark-teal" />
+          <span className="font-semibold">Dropoff:</span> {car.dropoff_location}
+        </div>
+      )}
+      {car.passengers && car.passengers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <Users className="h-4 w-4 text-dark-teal" />
+          <span className="font-semibold text-sm">Passengers:</span>
+          <div className="flex flex-wrap gap-1">
+            {car.passengers.map((p) => (
+              <ParticipantBadge 
+                key={p} 
+                name={p} 
+                event={event} 
+                allParticipantProfiles={allParticipantProfiles} 
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
 export type { ItineraryEvent, ParticipantProfile }
+

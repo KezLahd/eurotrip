@@ -16,9 +16,9 @@ export interface RawFlight {
 
 export interface RawAccommodation {
   id: number
-  accomodation_name: string | null // e.g., "Hotel stay in Paris" or "Junior Suite"
+  accommodation_name: string | null // e.g., "Hotel stay in Paris" or "Junior Suite"
   hotel_city: string | null
-  hotel_name: string | null // This seems redundant with accomodation_name, but keeping for mapping
+  hotel_name: string | null // This seems redundant with accommodation_name, but keeping for mapping
   hotel_photo_url: string | null
   hotel_address: string | null
   date_check_in_local: string | null
@@ -29,15 +29,21 @@ export interface RawAccommodation {
   participant_count: string | null // Assuming this is a string, will parse to number
   booking_reference: string | null
   breakfast_included: string | null // "Y" or null
+  additional_features_gym: boolean | null
+  additional_features_cafe: boolean | null
+  additional_features_restaurant: boolean | null
+  additional_features_shopping: boolean | null
+  additional_features_food_savoury: boolean | null
+  additional_features_food_sweet: boolean | null
 }
 
 export interface RawRoomConfiguration {
   id: number
-  accomodation_name: string | null // To link to RawAccommodation
+  accommodation_name: string | null // To link to RawAccommodation
   room_type: string | null // e.g., "Room 101", "Junior Suite"
   participants: string | null // e.g., "KJ,PE"
   participant_count: string | null
-  booking_reference: string | null // To link to booking_reference in accomodation table
+  booking_reference: string | null // To link to booking_reference in accommodation table
 }
 
 export interface RawTransfer {
@@ -145,6 +151,29 @@ export interface ParticipantProfile {
   photoUrl: string | null
 }
 
+// Add new types for food data
+export interface RawSavouryFood {
+  id: number
+  accommodation_id: number
+  food_name: string
+  vendor_name: string | null
+  vendor_location: string | null
+  vendor_distance: string | null
+  food_photo_url: string | null
+  menu_url: string | null
+}
+
+export interface RawSweetFood {
+  id: number
+  accommodation_id: number
+  food_name: string
+  vendor_name: string | null
+  vendor_location: string | null
+  vendor_distance: string | null
+  food_photo_url: string | null
+  menu_url: string | null
+}
+
 // This interface represents the transformed, clean data structure used by the UI components
 // It's a superset of all possible event properties
 export interface ItineraryEvent {
@@ -180,6 +209,13 @@ export interface ItineraryEvent {
   // Accommodation specific fields
   rooms?: RoomDetail[]
   hotel_photo_url?: string
+  accommodation_id?: number // Added for gym feature
+  additional_features_gym?: boolean // Added for gym feature
+  additional_features_cafe?: boolean // Added for cafe/restaurant feature
+  additional_features_restaurant?: boolean // Keeping for backward compatibility
+  additional_features_shopping?: boolean // Added for shopping feature
+  additional_features_food_savoury?: boolean // Updated for savoury food feature
+  additional_features_food_sweet?: boolean // Updated for sweet food feature
   // Car hire specific fields
   cars?: CarDetail[]
   // Flight specific fields
