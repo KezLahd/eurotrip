@@ -15,6 +15,7 @@ import type { ParticipantProfile, ItineraryEvent } from "@/types/itinerary"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import Image from "next/image"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 
 interface EditActivityFormProps {
   activity: ItineraryEvent
@@ -30,7 +31,6 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
   const [formData, setFormData] = useState({
     activity_name: activity.activity_name || "",
     location: activity.location || "",
-    city: activity.city || "",
     start_time_local: activity.start_time_local ? format(new Date(activity.start_time_local), "yyyy-MM-dd'T'HH:mm") : "",
     end_time_local: activity.end_time_local ? format(new Date(activity.end_time_local), "yyyy-MM-dd'T'HH:mm") : "",
     participants: activity.participants || [],
@@ -66,6 +66,21 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
     };
     fetchSessionAndRole();
   }, [supabase]);
+
+  // Ensure additional_details is always filled when opening the dialog
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        activity_name: activity.activity_name || "",
+        location: activity.location || "",
+        start_time_local: activity.start_time_local ? format(new Date(activity.start_time_local), "yyyy-MM-dd'T'HH:mm") : "",
+        end_time_local: activity.end_time_local ? format(new Date(activity.end_time_local), "yyyy-MM-dd'T'HH:mm") : "",
+        participants: activity.participants || [],
+        additional_details: activity.additional_details || "",
+        booking_reference: activity.booking_reference || "",
+      })
+    }
+  }, [open, activity])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -155,7 +170,6 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
         .update({
           activity_name: formData.activity_name.trim(),
           location: formData.location.trim(),
-          city: formData.city.trim(),
           start_time_local: format(startTimeLocal, "yyyy-MM-dd'T'HH:mm:ss"),
           start_time_utc: startTimeUTC,
           end_time_local: format(endTimeLocal, "yyyy-MM-dd'T'HH:mm:ss"),
@@ -237,7 +251,7 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
                   <Pencil className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-4 overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Edit Activity</DialogTitle>
                 </DialogHeader>
@@ -251,65 +265,73 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
                       required
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="start_time_local">Start Time (Local)</Label>
-                    <Input
-                      id="start_time_local"
-                      type="datetime-local"
-                      value={formData.start_time_local}
-                      onChange={(e) => setFormData({ ...formData, start_time_local: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="end_time_local">End Time (Local)</Label>
-                    <Input
-                      id="end_time_local"
-                      type="datetime-local"
-                      value={formData.end_time_local}
-                      onChange={(e) => setFormData({ ...formData, end_time_local: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label>Participants</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {Array.from(allParticipantProfiles.values()).map((profile) => (
-                        <label key={profile.name} className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={formData.participants.includes(profile.name)}
-                            onChange={(e) => {
-                              const newParticipants = e.target.checked
-                                ? [...formData.participants, profile.name]
-                                : formData.participants.filter((p) => p !== profile.name)
-                              setFormData({ ...formData, participants: newParticipants })
-                            }}
-                            className="rounded border-gray-300 text-primary-blue focus:ring-primary-blue"
-                          />
-                          <span>{profile.name}</span>
-                        </label>
-                      ))}
+                  <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="booking_reference">Booking Reference</Label>
+                      <Input
+                        id="booking_reference"
+                        value={formData.booking_reference}
+                        onChange={(e) => setFormData({ ...formData, booking_reference: e.target.value })}
+                      />
                     </div>
                   </div>
+                  <div className="flex flex-col gap-2 md:flex-row md:gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="start_time_local">Start Time (Local)</Label>
+                      <Input
+                        id="start_time_local"
+                        type="datetime-local"
+                        value={formData.start_time_local}
+                        onChange={(e) => setFormData({ ...formData, start_time_local: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Label htmlFor="end_time_local">End Time (Local)</Label>
+                      <Input
+                        id="end_time_local"
+                        type="datetime-local"
+                        value={formData.end_time_local}
+                        onChange={(e) => setFormData({ ...formData, end_time_local: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  {/* Participants Accordion */}
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="participants">
+                      <AccordionTrigger className="gap-x-2">Participants</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {Array.from(allParticipantProfiles.values()).map((profile) => (
+                            <label key={profile.name} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={formData.participants.includes(profile.name)}
+                                onChange={(e) => {
+                                  const newParticipants = e.target.checked
+                                    ? [...formData.participants, profile.name]
+                                    : formData.participants.filter((p) => p !== profile.name)
+                                  setFormData({ ...formData, participants: newParticipants })
+                                }}
+                                className="rounded border-gray-300 text-primary-blue focus:ring-primary-blue"
+                              />
+                              <span>{profile.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                   <div>
                     <Label htmlFor="additional_details">Additional Details</Label>
                     <Textarea
@@ -317,14 +339,6 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
                       value={formData.additional_details}
                       onChange={(e) => setFormData({ ...formData, additional_details: e.target.value })}
                       rows={3}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="booking_reference">Booking Reference</Label>
-                    <Input
-                      id="booking_reference"
-                      value={formData.booking_reference}
-                      onChange={(e) => setFormData({ ...formData, booking_reference: e.target.value })}
                     />
                   </div>
                   <div>
