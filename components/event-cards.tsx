@@ -1515,7 +1515,7 @@ export function TransferActivityCard({ event, allParticipantProfiles }: EventCar
           </div>
         )}
         {/* Fallback if no location information is available */}
-        {!event.leave_location && !event.arrive_location && !event.additional_transfer_info && (
+        {!event.leave_location && !event.arrive_location && !event.location && !event.additional_transfer_info && (
           <div className="flex items-center gap-2 text-sm">
             <MapPin className={cn("h-4 w-4", iconColor)} />
             <span className="font-semibold">Location:</span> N/A
