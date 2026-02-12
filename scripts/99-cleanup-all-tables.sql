@@ -1,0 +1,10 @@
+-- Drop all tables in reverse dependency order
+DROP TABLE IF EXISTS animations CASCADE;
+DROP TABLE IF EXISTS participants CASCADE;
+DROP TABLE IF EXISTS transport_tickets CASCADE;
+DROP TABLE IF EXISTS activities CASCADE;
+DROP TABLE IF EXISTS car_hires CASCADE;
+DROP TABLE IF EXISTS transfers CASCADE;
+DROP TABLE IF EXISTS room_configuration CASCADE;
+DROP TABLE IF EXISTS accomodation CASCADE;
+DROP TABLE IF EXISTS flights CASCADE;
