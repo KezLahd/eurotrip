@@ -93,15 +93,12 @@ CREATE TABLE IF NOT EXISTS activities (
 );
 
 -- Seed data for flights
-INSERT INTO flights (departure_city, flight_photo_url, arrival_city, departure_time_local, arrive_time_local,
-    leave_time_universal, arrive_time_universal, passengers, leave_location, arrive_location,
-    airline, booking_reference) VALUES
+INSERT INTO flights (departure_city, flight_photo_url, arrival_city, departure_time_local, arrival_time_local,
+    departure_time_utc, arrival_time_utc, passengers, flight_number, booking_reference) VALUES
 ('London Heathrow (LHR)', '/placeholder.svg?height=400&width=600', 'Paris Charles de Gaulle (CDG)', '10/07/2025 @ 10:00', '10/07/2025 @ 12:00',
- '2025-07-10T08:00:00Z', '2025-07-10T10:00:00Z', 'Alice,Bob', 'London Heathrow (LHR)', 'Paris Charles de Gaulle (CDG)',
- 'Air France', 'FLT789'),
+ '2025-07-10T08:00:00Z', '2025-07-10T10:00:00Z', 'Alice,Bob', 'AF1234', 'FLT789'),
 ('Paris Charles de Gaulle (CDG)', '/placeholder.svg?height=400&width=600', 'Rome Fiumicino (FCO)', '14/07/2025 @ 15:00', '14/07/2025 @ 17:00',
- '2025-07-14T13:00:00Z', '2025-07-14T15:00:00Z', 'Alice,Bob', 'Paris Charles de Gaulle (CDG)', 'Rome Fiumicino (FCO)',
- 'Alitalia', 'FLT901');
+ '2025-07-14T13:00:00Z', '2025-07-14T15:00:00Z', 'Alice,Bob', 'AZ567', 'FLT901');
 
 -- Seed data for accomodation
 INSERT INTO accomodation (accomodation_name, hotel_city, hotel_name, hotel_photo_url, hotel_address, date_check_in_local, date_check_in_utc, date_check_out, date_check_out_utc, participants, participant_count, booking_reference, breakfast_included) VALUES
