@@ -89,4 +89,4 @@ export function WelcomeAnimation({ videoUrl, backgroundUrl, onAnimationComplete 
       )}
     </div>
   )
-} 
+}

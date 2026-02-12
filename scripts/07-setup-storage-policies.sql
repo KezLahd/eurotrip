@@ -43,4 +43,4 @@ VALUES
   );
 
 -- Switch back to postgres role
-SET ROLE postgres; 
+SET ROLE postgres;

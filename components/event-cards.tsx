@@ -1672,4 +1672,3 @@ function CarDetailDisplay({ car, allParticipantProfiles, event }: CarDetailDispl
 }
 
 export type { ItineraryEvent, ParticipantProfile }
-

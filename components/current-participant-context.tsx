@@ -45,4 +45,4 @@ export function CurrentParticipantProvider({ children }: { children: React.React
       {children}
     </CurrentParticipantContext.Provider>
   );
-} 
+}

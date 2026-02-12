@@ -345,4 +345,4 @@ export function AddActivityForm({ allParticipantProfiles, onActivityAdded }: Add
       </DialogContent>
     </Dialog>
   )
-} 
+}

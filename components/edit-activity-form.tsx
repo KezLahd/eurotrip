@@ -453,4 +453,4 @@ export function EditActivityForm({ activity, allParticipantProfiles, onActivityU
       </Dialog>
     </>
   )
-} 
+}
