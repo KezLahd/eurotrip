@@ -12,14 +12,10 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
   const isLoginPage = pathname === "/login"
-  const isProtectedPage = pathname === "/"
 
-  // ✅ Redirect unauthenticated users away from protected routes
-  if (!session && isProtectedPage) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = "/login"
-    return NextResponse.redirect(loginUrl)
-  }
+  // `/` is handled by the page itself: unauthenticated visitors see the public
+  // landing, authenticated ones see the itinerary. So no redirect is required
+  // at the middleware layer for the home route.
 
   // ✅ Redirect authenticated users away from login
   if (session && isLoginPage) {

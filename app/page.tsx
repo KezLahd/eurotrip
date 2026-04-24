@@ -1,10 +1,27 @@
 import { createServerClient } from "@/lib/supabase-client"
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers" // Import cookies
 import ItineraryClientWrapper from "./itinerary-client-wrapper"
+import Landing from "@/components/marketing/landing"
 // Removed: import { fetchItineraryData } from "@/actions/itinerary" // No longer fetching here
 
 export default async function HomePage() {
-  // Pass cookies() to createServerClient for Server Components
+  // Use the auth-helpers server-component client to read the session cookie
+  // that middleware.ts set via createMiddlewareClient — these two must agree
+  // on cookie shape, so we use the same family here.
+  const authClient = createServerComponentClient({ cookies })
+  const {
+    data: { user },
+  } = await authClient.auth.getUser()
+
+  // Unauthenticated visitors get the public landing page. Logged-in users
+  // fall through to the itinerary app below.
+  if (!user) {
+    return <Landing />
+  }
+
+  // Existing data-fetching client keeps its custom cookie adapter — the
+  // animations table isn't RLS-gated so either reader works here.
   const supabase = createServerClient(cookies())
 
   let landscapeBackgroundUrl: string | null = null
