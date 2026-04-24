@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" role="img" aria-label="Eurotrip">
+  <defs>
+    <linearGradient id="euName" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF1493"/>
+      <stop offset="50%" stop-color="#FF8FC7"/>
+      <stop offset="100%" stop-color="#6AB8FF"/>
+    </linearGradient>
+    <pattern id="euGrid" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M 56 0 L 0 0 0 56" fill="none" stroke="#0D0D0D" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="euFade" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#CFE0F0" stop-opacity="0"/>
+      <stop offset="70%" stop-color="#CFE0F0" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#CFE0F0" stop-opacity="1"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="400" fill="#CFE0F0"/>
+  <rect width="1200" height="400" fill="url(#euGrid)"/>
+  <rect width="1200" height="400" fill="url(#euFade)"/>
+
+  <g transform="translate(80, 54)">
+    <rect width="232" height="28" rx="14" fill="#FF1493" fill-opacity="0.12" stroke="#FF1493" stroke-opacity="0.4"/>
+    <text x="116" y="19" text-anchor="middle" fill="#C11273" font-family="'DM Sans','Inter',system-ui,sans-serif" font-size="11" font-weight="600" letter-spacing="2.4">MATES · TRAVEL · INTERNAL</text>
+  </g>
+
+  <text x="80" y="238" fill="url(#euName)" font-family="'Instrument Serif','Georgia',serif" font-size="176" letter-spacing="-5">Eurotrip<tspan fill="#FF1493">.</tspan></text>
+
+  <text x="82" y="286" fill="#0D0D0D" fill-opacity="0.55" font-family="'Instrument Serif','Georgia',serif" font-style="italic" font-size="19">No landing site. This repo is the landing.</text>
+
+  <g transform="translate(80, 324)" font-family="'DM Sans','Inter',system-ui,sans-serif" font-size="11" font-weight="600" letter-spacing="1.6">
+    <g>
+      <rect width="96" height="26" rx="13" fill="#FFFFFF" stroke="#0D0D0D" stroke-opacity="0.2"/>
+      <text x="48" y="17" text-anchor="middle" fill="#0D0D0D" fill-opacity="0.8">NEXT.JS</text>
+    </g>
+    <g transform="translate(104, 0)">
+      <rect width="100" height="26" rx="13" fill="#FFFFFF" stroke="#0D0D0D" stroke-opacity="0.2"/>
+      <text x="50" y="17" text-anchor="middle" fill="#0D0D0D" fill-opacity="0.8">SUPABASE</text>
+    </g>
+    <g transform="translate(212, 0)">
+      <rect width="120" height="26" rx="13" fill="#FFFFFF" stroke="#0D0D0D" stroke-opacity="0.2"/>
+      <text x="60" y="17" text-anchor="middle" fill="#0D0D0D" fill-opacity="0.8">SERVER ACTIONS</text>
+    </g>
+    <g transform="translate(340, 0)">
+      <rect width="108" height="26" rx="13" fill="#FFFFFF" stroke="#0D0D0D" stroke-opacity="0.2"/>
+      <text x="54" y="17" text-anchor="middle" fill="#0D0D0D" fill-opacity="0.8">INSTALLABLE</text>
+    </g>
+  </g>
+
+  <g transform="translate(980, 200)">
+    <circle r="140" fill="none" stroke="#FF1493" stroke-opacity="0.15" stroke-width="1"/>
+    <circle r="105" fill="none" stroke="#FF1493" stroke-opacity="0.25" stroke-width="1"/>
+    <circle r="70" fill="none" stroke="#FF1493" stroke-opacity="0.4" stroke-width="1"/>
+    <path d="M 0 -12 C -8 -12 -15 -6 -15 2 C -15 12 0 28 0 28 C 0 28 15 12 15 2 C 15 -6 8 -12 0 -12 Z" fill="#FF1493"/>
+    <circle cx="0" cy="0" r="4" fill="#CFE0F0"/>
+    <g font-family="'Caveat','Bradley Hand','Segoe Script',cursive" fill="#FF1493" fill-opacity="0.85" font-size="18">
+      <text x="-105" y="-120" transform="rotate(-12 -105 -120)">paris</text>
+      <text x="70" y="-90" transform="rotate(8 70 -90)">rome</text>
+      <text x="-130" y="40" transform="rotate(-4 -130 40)">barcelona</text>
+      <text x="105" y="90" transform="rotate(10 105 90)">split</text>
+    </g>
+  </g>
+</svg>
