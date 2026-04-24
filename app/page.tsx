@@ -1,34 +1,46 @@
-import { createServerClient } from "@/lib/supabase-client"
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers" // Import cookies
+import { createServerClient as createLegacyServerClient } from "@/lib/supabase-client"
+import { createServerClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
 import ItineraryClientWrapper from "./itinerary-client-wrapper"
 import Landing from "@/components/marketing/landing"
-// Removed: import { fetchItineraryData } from "@/actions/itinerary" // No longer fetching here
 
 export default async function HomePage() {
-  // Use the auth-helpers server-component client to read the session cookie
-  // that middleware.ts set via createMiddlewareClient — these two must agree
-  // on cookie shape, so we use the same family here.
-  const authClient = createServerComponentClient({ cookies })
+  // ── Auth check ─────────────────────────────────────────────────────────
+  // Reads the same session cookies the middleware writes via createServerClient.
+  // Matches cookie shape exactly — we use the new auth-helpers v0.15 API here
+  // and in middleware.ts.
+  const cookieStore = await cookies()
+  const authClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll() {
+          // No-op in Server Components — Next won't let us mutate cookies here.
+          // Session refresh happens in middleware.ts.
+        },
+      },
+    }
+  )
   const {
     data: { user },
   } = await authClient.auth.getUser()
 
-  // Unauthenticated visitors get the public landing page. Logged-in users
-  // fall through to the itinerary app below.
+  // Unauthenticated visitors see the public landing.
   if (!user) {
     return <Landing />
   }
 
-  // Existing data-fetching client keeps its custom cookie adapter — the
-  // animations table isn't RLS-gated so either reader works here.
-  const supabase = createServerClient(cookies())
+  // ── Existing itinerary path for signed-in users ────────────────────────
+  const supabase = createLegacyServerClient(cookieStore)
 
   let landscapeBackgroundUrl: string | null = null
   let portraitBackgroundUrl: string | null = null
 
   try {
-    // Fetch background image URLs
     const { data: landscapeBackground, error: landscapeBgError } = await supabase
       .from("animations")
       .select("url")

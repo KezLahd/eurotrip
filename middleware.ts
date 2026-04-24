@@ -1,35 +1,50 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
+import { createServerClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
-  const supabase = createMiddlewareClient({ req: request, res: response })
+  let response = NextResponse.next({ request })
 
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value)
+          })
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+
+  // Keeps the session fresh by reading it. Don't read + redirect inside the same
+  // request beyond this: the page at / handles landing vs itinerary itself.
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
   const pathname = request.nextUrl.pathname
-  const isLoginPage = pathname === "/login"
 
-  // `/` is handled by the page itself: unauthenticated visitors see the public
-  // landing, authenticated ones see the itinerary. So no redirect is required
-  // at the middleware layer for the home route.
-
-  // ✅ Redirect authenticated users away from login
-  if (session && isLoginPage) {
-    const homeUrl = request.nextUrl.clone()
-    homeUrl.pathname = "/"
-    return NextResponse.redirect(homeUrl)
+  // Redirect signed-in users away from /login — they should see the app.
+  if (session && pathname === "/login") {
+    const url = request.nextUrl.clone()
+    url.pathname = "/"
+    return NextResponse.redirect(url)
   }
 
   return response
 }
 
-// ✅ Apply to all routes except static assets and APIs
+// Apply to everything except static assets, icons, manifests, and API routes.
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon-|manifest|placeholder.svg|api).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon-|manifest|placeholder.svg|api).*)"],
 }
