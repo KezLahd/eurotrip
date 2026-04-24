@@ -4,12 +4,31 @@ import Link from "next/link"
 import { useEffect } from "react"
 import styles from "./landing.module.css"
 
-const CITIES = ["paris", "rome", "barcelona", "split", "lisbon", "mykonos", "amsterdam", "prague", "florence"]
+// Travel order: Athens → Paros → Cannes → Sorrento → Rome → London
+// Rough geographic placement on a 360×360 canvas — readable, not atlas-accurate.
+const CITIES: Array<{ name: string; x: number; y: number; labelDx: number; labelDy: number }> = [
+  { name: "London",    x:  82, y:  64, labelDx: 10,  labelDy: -8  },
+  { name: "Cannes",    x: 138, y: 178, labelDx: -66, labelDy:  4  },
+  { name: "Rome",      x: 182, y: 212, labelDx:  12, labelDy:  0  },
+  { name: "Sorrento",  x: 198, y: 238, labelDx:  12, labelDy: 14  },
+  { name: "Athens",    x: 260, y: 228, labelDx:  12, labelDy:  0  },
+  { name: "Paros",     x: 278, y: 258, labelDx:  12, labelDy: 10  },
+]
+
+// Trail in TRAVEL order: Athens → Paros → Cannes → Sorrento → Rome → London.
+// Uses the same coords as CITIES.
+const TRAIL_ORDER = ["Athens", "Paros", "Cannes", "Sorrento", "Rome", "London"] as const
+const cityCoord = (name: (typeof TRAIL_ORDER)[number]) =>
+  CITIES.find((c) => c.name === name)!
+const trailPath = TRAIL_ORDER.map((c, i) => {
+  const { x, y } = cityCoord(c)
+  return `${i === 0 ? "M" : "L"} ${x} ${y}`
+}).join(" ")
 
 export default function Landing() {
-  // The app sets `html, body { overflow: hidden }` in globals.css to keep
-  // the itinerary view locked in place. For the landing we want normal
-  // scrolling, so override it while this component is mounted.
+  // Eurotrip's globals.css locks `html, body { overflow: hidden }` so the
+  // itinerary app stays pinned. The landing needs normal scrolling, so
+  // override while this component is mounted.
   useEffect(() => {
     const body = document.body
     const html = document.documentElement
@@ -60,7 +79,7 @@ export default function Landing() {
             <div className={styles.heroEyebrow}>
               <span className={styles.pill}>
                 <span className={styles.pillDot} />
-                For four mates · Private
+                Family trip · 20 of us
               </span>
             </div>
 
@@ -70,10 +89,10 @@ export default function Landing() {
             </h1>
 
             <p className={styles.heroTag}>
-              A private itinerary app for four of us through Europe.
+              A first user platform, built for a family trip through Europe.
               <br />
-              Not a product. Not for sale.
-              <span className={styles.scribble}>just ours</span>
+              Twenty people. Six stops. One app.
+              <span className={styles.scribble}>bon voyage</span>
             </p>
 
             <div className={styles.ctas}>
@@ -92,36 +111,54 @@ export default function Landing() {
           </div>
 
           <div className={styles.heroRight}>
-            <svg className={styles.map} viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+            <svg
+              className={styles.map}
+              viewBox="-20 -20 400 400"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ overflow: "visible" }}
+              aria-hidden
+            >
               <defs>
                 <linearGradient id="euTrail" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#FF1493" />
                   <stop offset="100%" stopColor="#6AB8FF" />
                 </linearGradient>
               </defs>
-              <circle cx="180" cy="180" r="150" fill="none" stroke="#FF1493" strokeOpacity="0.15" />
-              <circle cx="180" cy="180" r="110" fill="none" stroke="#FF1493" strokeOpacity="0.25" />
-              <circle cx="180" cy="180" r="70" fill="none" stroke="#FF1493" strokeOpacity="0.4" />
+
+              {/* concentric rings, centred-ish */}
+              <circle cx="180" cy="180" r="164" fill="none" stroke="#FF1493" strokeOpacity="0.1" />
+              <circle cx="180" cy="180" r="124" fill="none" stroke="#FF1493" strokeOpacity="0.18" />
+              <circle cx="180" cy="180" r="84" fill="none" stroke="#FF1493" strokeOpacity="0.28" />
+
+              {/* travel trail in order */}
               <path
-                d="M 70 120 Q 130 80 180 110 Q 240 140 280 100 Q 310 180 260 230 Q 200 270 140 240 Q 80 210 70 120 Z"
+                d={trailPath}
                 fill="none"
                 stroke="url(#euTrail)"
                 strokeWidth="2"
-                strokeDasharray="4 6"
-                opacity="0.8"
+                strokeDasharray="5 6"
+                strokeLinecap="round"
+                opacity="0.85"
               />
-              <g fill="#FF1493">
-                <circle cx="70" cy="120" r="6" />
-                <circle cx="180" cy="110" r="6" />
-                <circle cx="280" cy="100" r="6" />
-                <circle cx="260" cy="230" r="6" />
-                <circle cx="140" cy="240" r="6" />
-              </g>
-              <path
-                d="M 180 160 C 168 160 158 170 158 182 C 158 198 180 224 180 224 C 180 224 202 198 202 182 C 202 170 192 160 180 160 Z"
-                fill="#FF1493"
-              />
-              <circle cx="180" cy="182" r="6" fill="#CFE0F0" />
+
+              {/* city pins + labels */}
+              {CITIES.map(({ name, x, y, labelDx, labelDy }) => (
+                <g key={name}>
+                  <circle cx={x} cy={y} r="10" fill="#FF1493" fillOpacity="0.18" />
+                  <circle cx={x} cy={y} r="5" fill="#FF1493" />
+                  <text
+                    x={x + labelDx}
+                    y={y + labelDy}
+                    fill="#0D0D0D"
+                    fillOpacity="0.85"
+                    fontFamily="'Caveat', 'Bradley Hand', cursive"
+                    fontSize="20"
+                    textAnchor={labelDx < 0 ? "end" : "start"}
+                  >
+                    {name}
+                  </text>
+                </g>
+              ))}
             </svg>
           </div>
         </section>
@@ -129,21 +166,32 @@ export default function Landing() {
         {/* ─── About ──────────────────────────────── */}
         <section className={styles.section} id="about">
           <div className={styles.sectionHead}>
-            <div className={styles.sectionNo}>01 / What it is</div>
+            <div className={styles.sectionNo}>01 / The story</div>
             <h2 className={styles.sectionTitle}>
-              A trip app built for us, <em>by one of us</em>.
+              Mum had it in <em>Excel</em>. I turned it into an app.
             </h2>
           </div>
           <p className={styles.aboutText}>
-            Four mates, one Europe trip, one shared itinerary problem — the kind
-            that lives in seventeen group-chat scroll-backs. So I built this. A
-            PWA you can install on your phone, login-gated to the four of us,
-            with every day of the trip, every booking, and a per-city shortlist
-            of things to do when we don&apos;t know what to do.
+            The trip started in a spreadsheet. Mum had done all the planning —
+            flights, accommodation, day-by-day. The family kept messaging her:
+            <em> &ldquo;when are we in Athens again?&rdquo;</em>,{" "}
+            <em> &ldquo;what&apos;s the name of the hotel in Cannes?&rdquo;</em>,{" "}
+            <em> &ldquo;can someone send me the flight booking reference?&rdquo;</em> —
+            twenty times over. So I built this: a private, login-gated web app
+            that turned the spreadsheet into something twenty people could all
+            use at once.
             <br /><br />
-            It&apos;s not a product. There&apos;s no public signup. If you&apos;re
-            reading this and you weren&apos;t on the trip, the code on GitHub is
-            a better time.
+            Every person saw <strong>their own flight tickets and booking
+            references</strong>. The whole family shared a single day-by-day feed
+            of activities with <strong>voting</strong>, so we knew what everyone
+            wanted to do before we had the conversation. Nearby gyms, coffee
+            shops, and shopping got surfaced per city, because at some point
+            someone always wanted one of those and nobody wanted to open Google
+            Maps again.
+            <br /><br />
+            It was my <strong>first real user platform</strong>. It serviced the
+            whole family across a month of travel and built more hype for the
+            trip than any WhatsApp group ever could.
           </p>
         </section>
 
@@ -152,36 +200,40 @@ export default function Landing() {
           <div className={styles.sectionHead}>
             <div className={styles.sectionNo}>02 / Inside</div>
             <h2 className={styles.sectionTitle}>
-              The things it <em>actually does</em>.
+              What the <em>twenty of us</em> actually used.
             </h2>
           </div>
           <div className={styles.features}>
             <article className={styles.feature}>
-              <h3 className={styles.featureTitle}>Shared itinerary</h3>
+              <h3 className={styles.featureTitle}>Personal travel docs</h3>
               <p className={styles.featureBody}>
-                Every day, every booking, every note. The four of us see the same
-                plan in the same place.
+                Each user saw their own flight tickets, accommodation booking
+                references, transfers, and train reservations. No more "can
+                someone forward me the email".
               </p>
             </article>
             <article className={styles.feature}>
-              <h3 className={styles.featureTitle}>Activity shortlists</h3>
+              <h3 className={styles.featureTitle}>Activity feed with voting</h3>
               <p className={styles.featureBody}>
-                Per-city lists of things to do, so at midnight in Barcelona we
-                don&apos;t have to open six tabs.
+                Twenty opinions about one afternoon in Paros — resolved before
+                anyone had to be a mediator. Vote up, vote down, see what the
+                group leaned toward.
               </p>
             </article>
             <article className={styles.feature}>
-              <h3 className={styles.featureTitle}>Installable as a PWA</h3>
+              <h3 className={styles.featureTitle}>Nearby this city</h3>
               <p className={styles.featureBody}>
-                Works offline-ish. Which is relevant, because rural Croatia is
-                relevant, because that&apos;s where reception goes to die.
+                Gyms, coffee shops, and shopping per city, so the person on
+                holiday-but-still-training and the person who needed a flat white
+                at 7am could both get on with their morning.
               </p>
             </article>
             <article className={styles.feature}>
-              <h3 className={styles.featureTitle}>Cinematic backgrounds</h3>
+              <h3 className={styles.featureTitle}>Restaurants &amp; events</h3>
               <p className={styles.featureBody}>
-                Full-bleed looping landscape clips. On a train into Rome, they do
-                something. On the couch in Sydney, they&apos;re a dumb flourish.
+                Special-occasion dinners and birthday bookings pinned to the
+                days they happened on, so everyone knew to be ready on time in
+                the right place in the right shirt.
               </p>
             </article>
           </div>
@@ -196,12 +248,20 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ─── Cities ribbon ──────────────────────── */}
+        {/* ─── Cities / route ─────────────────────── */}
         <section className={styles.cities}>
           <div className={styles.citiesInner}>
-            {CITIES.map((c) => (
-              <span key={c}>{c}</span>
-            ))}
+            <span>athens</span>
+            <span>→</span>
+            <span>paros</span>
+            <span>→</span>
+            <span>cannes</span>
+            <span>→</span>
+            <span>sorrento</span>
+            <span>→</span>
+            <span>rome</span>
+            <span>→</span>
+            <span>london</span>
           </div>
         </section>
 
@@ -228,10 +288,15 @@ export default function Landing() {
 
         {/* ─── Footer ─────────────────────────────── */}
         <footer className={styles.footer}>
-          <span>Built by Kieran · For four mates · 2025</span>
+          <span>Built by Kieran · For family · 2025</span>
           <span>
-            <a href="https://kieranjackson.com" target="_blank" rel="noopener noreferrer">
-              kieranjackson.com ↗
+            Another{" "}
+            <a
+              href="https://instagram.com/kieranjxn"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Kez Curation ↗
             </a>
           </span>
         </footer>

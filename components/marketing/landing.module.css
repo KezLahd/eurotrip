@@ -90,14 +90,18 @@
   align-items: center;
   gap: 8px;
   padding: 8px 18px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--pink);
+  color: #ffffff;
   border-radius: 100px;
   font-weight: 500;
   font-size: 13px;
-  transition: background 0.18s ease, transform 0.18s ease;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
-.signInBtn:hover { background: var(--pink); transform: translateY(-1px); }
+.signInBtn:hover {
+  background: #C1126F;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 20, 147, 0.3);
+}
 
 .pill {
   display: inline-flex;
